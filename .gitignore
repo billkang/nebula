@@ -36,3 +36,8 @@ htmlcov/
 
 # Build outputs
 projects/
+
+# Dev script state markers
+.alembic_done
+.seed_done
+.requirements.hash
