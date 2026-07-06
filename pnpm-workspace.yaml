@@ -1,0 +1,3 @@
+packages:
+  - "packages/build-engine/frontend"
+  - "packages/shared-ui"
