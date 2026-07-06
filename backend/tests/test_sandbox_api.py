@@ -34,14 +34,41 @@ def _setup_project_with_artifact(client: TestClient, headers: dict, project_name
     (project_dir / "requirements.txt").write_text("pytest\n", encoding="utf-8")
     (project_dir / "Dockerfile").write_text("FROM python:3.12-slim\n", encoding="utf-8")
 
-    # 生成一个 Artifact（通过 BuildService）
+    # 生成一个 Artifact（手动创建，不依赖 BuildService Docker backend）
+    import tarfile, json
+    from datetime import datetime, timezone
+    artifact_version = "v1"
+
     from app.services.build_service import _build_states
     _build_states.clear()
-    result = BuildService.build(pid)
-    assert result["status"] == "success"
-    version = result["artifact_version"]
 
-    return pid, version
+    artifact_dir = project_dir / "artifacts" / artifact_version
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+
+    manifest = {
+        "version": artifact_version,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "entry": "src/main.py",
+        "dependencies": ["pytest"],
+    }
+    with open(artifact_dir / "manifest.json", "w") as f:
+        json.dump(manifest, f)
+
+    tar_path = artifact_dir / "artifact.tar.gz"
+    with tarfile.open(tar_path, "w:gz") as tar:
+        tar.add(project_dir / "src", arcname="src")
+        tar.add(project_dir / "requirements.txt", arcname="requirements.txt")
+        tar.add(project_dir / "Dockerfile", arcname="Dockerfile")
+        tar.add(artifact_dir / "manifest.json", arcname="manifest.json")
+
+    _build_states[pid] = {
+        "status": "success",
+        "message": f"构建完成，Artifact: {tar_path}",
+        "artifact_version": artifact_version,
+        "runtime_status": "runtime_unavailable",
+    }
+
+    return pid, artifact_version
 
 
 class TestSandboxAPI:
