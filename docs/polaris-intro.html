@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>星云 · Nebula — AI Agent 中台</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Inter:wght@300;400;500;600;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #f0f2f6;
+    --slide-bg: #ffffff;
+    --card-bg: #f6f7fb;
+    --card-border: #e6eaf2;
+    --text: #181c28;
+    --text2: #656c80;
+    --text3: #959cb0;
+    --blue: #4f6ef7;
+    --blue-light: #eef1ff;
+    --green: #16a34a;
+    --orange: #d97706;
+    --rose: #d9468b;
+    --radius: 12px;
+    --shadow-lg: 0 8px 40px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
+  }
+
+  body {
+    font-family: 'Noto Sans SC', 'Inter', -apple-system, 'PingFang SC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .frame {
+    position: relative;
+    width: min(96vw, 1200px);
+    aspect-ratio: 16 / 9;
+    background: var(--slide-bg);
+    border-radius: 20px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+  .frame.fullscreen { border-radius: 0; width: 100vw; }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 48px 56px 56px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(14px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    overflow-y: auto;
+  }
+  .slide.active { opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+  .hdr {
+    position: absolute; top: 0; left: 0; right: 0;
+    padding: 16px 28px;
+    display: flex; justify-content: space-between; align-items: center;
+    pointer-events: none; z-index: 10;
+  }
+  .hdr .brand { display: flex; align-items: center; gap: 8px; }
+  .hdr .brand svg { display: block; flex-shrink: 0; }
+  .hdr .brand span { font-size: 13px; font-weight: 700; color: var(--text2); letter-spacing: .04em; }
+  .hdr .num { font-size: 11px; color: var(--text3); font-feature-settings: "tnum"; }
+
+  .fs-btn {
+    position: absolute; top: 14px; right: 18px;
+    z-index: 20; pointer-events: auto;
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 7px; padding: 5px 9px;
+    cursor: pointer; font-size: 14px; line-height: 1;
+    color: var(--text3); transition: all .2s;
+  }
+  .fs-btn:hover { background: #eef0f6; color: var(--text); }
+
+  .nav {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 14px; z-index: 100;
+    pointer-events: auto;
+  }
+  .nav-btn {
+    font-family: inherit;
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    color: var(--text2); font-size: 15px; cursor: pointer;
+    padding: 5px 10px; border-radius: 6px;
+    transition: all .2s; line-height: 1;
+  }
+  .nav-btn:hover { background: #eef0f6; color: var(--text); }
+  .dots { display: flex; gap: 5px; }
+  .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--text3); cursor: pointer;
+    transition: all .3s ease; opacity: .35;
+  }
+  .dot.active { opacity: 1; background: var(--blue); width: 24px; border-radius: 3px; }
+
+  h1 { font-size: clamp(1.8rem, 3.4vw, 3rem); font-weight: 800; letter-spacing: -.025em; line-height: 1.12; }
+  h1 .hl { background: linear-gradient(135deg, var(--blue), #8b6cf7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  h2 { font-size: clamp(1.3rem, 2.2vw, 2rem); font-weight: 700; letter-spacing: -.02em; line-height: 1.2; }
+  h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  p { font-size: 14px; line-height: 1.55; color: var(--text2); max-width: 600px; }
+  p.lead { font-size: clamp(0.95rem, 1.3vw, 1.1rem); line-height: 1.5; color: var(--text); }
+  .tag { display: inline-block; background: var(--blue-light); color: var(--blue); padding: 3px 11px; border-radius: 12px; font-size: 10px; font-weight: 600; margin-bottom: 14px; }
+
+  .grid { display: grid; gap: 10px; margin-top: 16px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: 1fr 1fr 1fr; }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 16px; transition: all .2s; }
+  .card:hover { border-color: #d0d6e6; }
+  .card .ic { font-size: 20px; display: block; margin-bottom: 6px; }
+  .card h4 { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+  .card p { font-size: 12px; line-height: 1.5; max-width: 100%; }
+
+  .tb { margin-top: 10px; border-radius: var(--radius); border: 1px solid var(--card-border); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th { text-align: left; padding: 8px 14px; font-weight: 600; color: var(--text3); background: var(--card-bg); border-bottom: 1px solid var(--card-border); font-size: 10px; letter-spacing: .03em; }
+  tbody td { padding: 9px 14px; border-bottom: 1px solid rgba(0,0,0,.03); vertical-align: middle; line-height: 1.4; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(79,110,247,.03); }
+  .hlr td { background: var(--blue-light); }
+  .hlr td:first-child { border-left: 2px solid var(--blue); font-weight: 600; }
+  .hlc { color: var(--blue); font-weight: 500; }
+
+  .pills { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 12px; }
+  .pill { display: flex; align-items: center; gap: 4px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 7px; padding: 5px 10px; font-size: 11px; color: var(--text2); }
+
+  .flow { display: flex; align-items: center; gap: 3px; margin-top: 14px; flex-wrap: wrap; }
+  .flow .n { padding: 6px 12px; border-radius: 7px; font-size: 11px; border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text2); white-space: nowrap; }
+  .flow .n.on { border-color: #d6ddff; background: var(--blue-light); color: var(--blue); font-weight: 500; }
+  .flow .a { color: var(--text3); font-size: 11px; }
+
+  .sp { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 12px; }
+  .sp ul { list-style: none; padding: 0; }
+  .sp ul li { padding: 6px 0; border-bottom: 1px solid rgba(0,0,0,.04); font-size: 13px; line-height: 1.45; color: var(--text2); }
+  .sp ul li:last-child { border-bottom: none; }
+  .sp ul li strong { color: var(--text); font-weight: 500; }
+
+  .mt8 { margin-top: 8px; }
+  .mt12 { margin-top: 12px; }
+  .mt16 { margin-top: 16px; }
+  .mt20 { margin-top: 20px; }
+  .gap4 { gap: 4px; }
+  .flex { display: flex; }
+  .ac { align-items: center; }
+  .maxw { max-width: 560px; }
+  .mb8 { margin-bottom: 8px; }
+
+  .slide.active .an { animation: up .5s ease forwards; opacity: 0; }
+  .slide.active .d1 { animation-delay: .05s; }
+  .slide.active .d2 { animation-delay: .12s; }
+  .slide.active .d3 { animation-delay: .2s; }
+  .slide.active .d4 { animation-delay: .28s; }
+  .slide.active .d5 { animation-delay: .36s; }
+  .slide.active .d6 { animation-delay: .44s; }
+  @keyframes up { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+  @media (max-width: 768px) {
+    .frame { width: 100vw; border-radius: 0; aspect-ratio: auto; min-height: 100vh; box-shadow: none; }
+    .slide { padding: 40px 20px 56px; }
+    .hdr { padding: 14px 16px; }
+    .g2, .g3, .g4 { grid-template-columns: 1fr; }
+    .sp { grid-template-columns: 1fr; gap: 8px; }
+    table { font-size: 11px; }
+  }
+  .slide::-webkit-scrollbar { width: 3px; }
+  .slide::-webkit-scrollbar-thumb { background: var(--text3); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="frame" id="frame">
+
+  <button class="fs-btn" id="fsBtn" title="全屏展示 (F)">⛶</button>
+
+  <div class="hdr">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" width="22" height="22">
+        <defs>
+          <radialGradient id="ng" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#8b6cf7"/>
+            <stop offset="40%" stop-color="#4f6ef7"/>
+            <stop offset="100%" stop-color="#4f6ef7" stop-opacity="0"/>
+          </radialGradient>
+          <filter id="ngf">
+            <feGaussianBlur stdDeviation="0.5"/>
+          </filter>
+        </defs>
+        <circle cx="12" cy="12" r="9" fill="url(#ng)"/>
+        <circle cx="12" cy="12" r="3.5" fill="#8b6cf7" opacity="0.9"/>
+        <circle cx="9" cy="9" r="1.5" fill="#b8a5ff" opacity="0.4"/>
+        <circle cx="15" cy="10" r="1.2" fill="#b8a5ff" opacity="0.3"/>
+        <circle cx="11" cy="16" r="1" fill="#b8a5ff" opacity="0.35"/>
+      </svg>
+      <span>星云 · Nebula</span>
+    </div>
+    <div class="num" id="pageNum">01 / 11</div>
+  </div>
+
+  <!-- ══ 1 ══ -->
+  <div class="slide active" data-i="0">
+    <div class="maxw">
+      <div class="tag an">AI Agent 中台 · 2026</div>
+      <h1 class="an d1">给产品经理的<br><span class="hl">Agent 指挥台</span></h1>
+      <p class="lead mt12 an d2" style="max-width:480px">
+        不造轮子。把业务需求翻译成开发指令，<br>
+        调度成熟工具完成编码交付。
+      </p>
+      <div class="pills an d3">
+        <span class="pill">📄 输入：PRD / 自然语言</span>
+        <span class="pill">⚙ 驱动：LangGraph + Claude Code</span>
+        <span class="pill">📦 产出：独立代码库</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 2 ══ -->
+  <div class="slide" data-i="1">
+    <div>
+      <div class="tag an">背景 · 问题</div>
+      <h2 class="an d1">一个被忽略的断层</h2>
+      <p class="mt8 an d2 maxw">现有工具都围绕同一个人设计：<strong>开发者</strong>。最懂业务的人——产品经理——没有工具能直接表达需求。</p>
+      <div class="sp">
+        <div>
+          <h3 class="an d3" style="font-size:13px;">当前市场</h3>
+          <ul class="an d4">
+            <li><strong>Dify / Coze</strong> — 拖拽搭建，产出平台配置，需技术操作</li>
+            <li><strong>LangGraph / CrewAI</strong> — 代码框架，需开发者编排</li>
+            <li><strong>Claude Code / Cursor</strong> — 编码助手，需开发者指挥</li>
+            <li><strong>Copilot Studio</strong> — 企业级，仍依赖技术配置</li>
+          </ul>
+        </div>
+        <div>
+          <h3 class="an d3" style="font-size:13px;">被忽略的角色</h3>
+          <ul class="an d4">
+            <li><strong>产品经理</strong> 懂业务、懂需求，没有直接表达的工具</li>
+            <li>业务需求→开发指令之间，缺一个 <span style="color:var(--blue);font-weight:500;">翻译层</span></li>
+            <li>工程师花大量时间理解需求，而非写代码</li>
+            <li>需求文档和最终产出之间缺乏<strong>可追溯链路</strong></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 3 ══ -->
+  <div class="slide" data-i="2">
+    <div>
+      <div class="tag an">解决方案</div>
+      <h2 class="an d1">星云如何填补这个断层</h2>
+      <p class="mt8 an d2 maxw">星云是一个<strong>编排层</strong>——把 PM 的业务需求翻译成 Agent 开发指令，调度专业工具完成编码。不造轮子。</p>
+      <div class="grid g4 mt12">
+        <div class="card an d2" style="border-top:2px solid var(--blue);">
+          <span class="ic">🎯</span><h4>需求翻译层</h4>
+          <p>理解 PRD 或想法，沉淀为 proposal / design 文档</p>
+        </div>
+        <div class="card an d3" style="border-top:2px solid var(--green);">
+          <span class="ic">🛠</span><h4>工具调度层</h4>
+          <p>对接 Claude Code、LangGraph，不做重复劳动</p>
+        </div>
+        <div class="card an d4" style="border-top:2px solid var(--orange);">
+          <span class="ic">📦</span><h4>代码交付层</h4>
+          <p>产出独立代码库，非配置产物，可 Git 管理</p>
+        </div>
+        <div class="card an d5" style="border-top:2px solid var(--rose);">
+          <span class="ic">🔄</span><h4>迭代管理层</h4>
+          <p>历史文档持久化，再进入时加载上下文，增量修改</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 4 ══ -->
+  <div class="slide" data-i="3">
+    <div>
+      <div class="tag an">灵活输入</div>
+      <h2 class="an d1">三种需求输入模式</h2>
+      <p class="mt8 an d2 maxw">支持从 PRD 到想法的任意粒度，不要求 PM "按平台的方式"输入。</p>
+      <div class="grid g3 mt12">
+        <div class="card an d2" style="border-left:3px solid var(--blue);">
+          <div class="flex ac gap4 mb8"><span style="font-size:18px;">📄</span><h4 style="margin:0;font-size:13px;">上传 PRD</h4></div>
+          <p style="font-size:12px;">PM 提供 PRD → 自动解析 → 追问矛盾点和边界 → 达成共识 → 结构化文档 → 编码</p>
+          <p class="mt8" style="font-size:11px;color:var(--text3);">适用：PM 已写好完整产品文档</p>
+        </div>
+        <div class="card an d3" style="border-left:3px solid var(--green);">
+          <div class="flex ac gap4 mb8"><span style="font-size:18px;">💬</span><h4 style="margin:0;font-size:13px;">从零对话</h4></div>
+          <p style="font-size:12px;">PM 描述想法 → 多轮澄清 → 引导厘清逻辑 → 生成 proposal → 确认 → 补全文档 → 编码</p>
+          <p class="mt8" style="font-size:11px;color:var(--text3);">适用：新项目、需求在构思阶段</p>
+        </div>
+        <div class="card an d4" style="border-left:3px solid var(--orange);">
+          <div class="flex ac gap4 mb8"><span style="font-size:18px;">🔄</span><h4 style="margin:0;font-size:13px;">项目迭代</h4></div>
+          <p style="font-size:12px;">进入项目 → 加载历史文档 → AI 感知上下文 → 描述改动点 → 增量更新文档 → 增量编码</p>
+          <p class="mt8" style="font-size:11px;color:var(--text3);">适用：已上线项目改需求、功能迭代</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 5 ══ -->
+  <div class="slide" data-i="4">
+    <div>
+      <div class="tag an">构建流水线</div>
+      <h2 class="an d1">从需求到代码的可视化管道</h2>
+      <p class="mt8 an d2 maxw">代码生成需分钟级。用户有等待预期，Pipeline 可视化让用户知道进展。</p>
+      <p class="mt8 an d2 maxw" style="font-size:12px;">Python 不需要编译——"构建"= 验证依赖 + 打包版本化的 Build Artifact。</p>
+      <div class="flow an d3">
+        <span class="n on">📥 需求接收</span><span class="a">→</span>
+        <span class="n on">📝 文档生成</span><span class="a">→</span>
+        <span class="n on">🔧 Skill 匹配</span><span class="a">→</span>
+        <span class="n on">🤖 编码执行</span><span class="a">→</span>
+        <span class="n on">🧪 测试验证</span><span class="a">→</span>
+        <span class="n on">📦 构建打包</span><span class="a">→</span>
+        <span class="n on">✅ 交付</span>
+      </div>
+      <div class="grid g4 mt12 an d4">
+        <div class="card"><div style="font-size:20px;margin-bottom:2px;">📥</div><h4>接收</h4><p>PRD 解析或对话，确认范围</p></div>
+        <div class="card"><div style="font-size:20px;margin-bottom:2px;">📝</div><h4>文档</h4><p>对话结束后统一生成</p></div>
+        <div class="card"><div style="font-size:20px;margin-bottom:2px;">🔧</div><h4>匹配</h4><p>自动选择最合适的 Skill</p></div>
+        <div class="card"><div style="font-size:20px;margin-bottom:2px;">🤖</div><h4>编码</h4><p>Claude Code + Docker 沙箱</p></div>
+      </div>
+      <div class="pills an d5">
+        <span class="pill">📦 构建容器（与编码容器分离，轻量 alpine + Python）</span>
+        <span class="pill">🏷 版本化 Artifact 存储（支持回退）</span>
+        <span class="pill">🚀 nebula-runtime 直接加载运行</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 6 ══ -->
+  <div class="slide" data-i="5">
+    <div>
+      <div class="tag an">竞品格局</div>
+      <h2 class="an d1">2026 年 AI 平台全景</h2>
+      <div class="tb an d2">
+        <table>
+          <thead><tr><th>类别</th><th>代表平台</th><th>定位</th><th>使用者</th><th>产出物</th></tr></thead>
+          <tbody>
+            <tr><td>可视化构建</td><td>Dify / Coze / AutoGPT / LangFlow</td><td>低代码搭建 Agent</td><td>非技术 / 技术</td><td style="color:var(--text3);">平台配置</td></tr>
+            <tr><td>多 Agent 框架</td><td>LangGraph / CrewAI / OpenAI SDK</td><td>代码级 Agent 编排</td><td>开发者</td><td style="color:var(--text3);">代码</td></tr>
+            <tr><td>编码 Agent</td><td>Claude Code / Cursor / Devin</td><td>自主编码</td><td>开发者</td><td style="color:var(--text3);">代码</td></tr>
+            <tr><td>企业平台</td><td>LangSmith Fleet / Copilot Studio</td><td>全生命周期治理</td><td>企业团队</td><td style="color:var(--text3);">Agent + 托管</td></tr>
+            <tr class="hlr"><td><strong>AI 中台</strong></td><td><strong>星云 · Nebula</strong></td><td><strong>需求→开发指令→代码</strong></td><td><strong>产品经理</strong></td><td><strong>独立代码库</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mt12 an d3" style="font-size:12px;color:var(--text3);">星云占据独特生态位——与现平台不竞争、可互补。</p>
+    </div>
+  </div>
+
+  <!-- ══ 7 ══ -->
+  <div class="slide" data-i="6">
+    <div>
+      <div class="tag an">深度对比</div>
+      <h2 class="an d1">星云 vs 主流平台</h2>
+      <div class="tb an d2">
+        <table>
+          <thead><tr><th style="width:15%;">维度</th><th style="width:37%;">Dify / Coze</th><th style="width:48%;" class="hlc">星云 · Nebula</th></tr></thead>
+          <tbody>
+            <tr><td>目标用户</td><td>能画流程图、写 Prompt 的技术人员</td><td class="hlc">讲业务需求的产品经理</td></tr>
+            <tr><td>输入方式</td><td>拖拽节点 + 配置参数</td><td class="hlc">自然语言沟通 / 上传 PRD</td></tr>
+            <tr><td>核心能力</td><td>可视化编排 Agent 工作流</td><td class="hlc">需求理解 → 文档沉淀 → 编码指令翻译</td></tr>
+            <tr><td>产出物</td><td>平台内 Agent 配置（锁定）</td><td class="hlc">可独立运行的完整代码库（Git 管理）</td></tr>
+            <tr><td>运行方式</td><td>在平台内运行配置</td><td class="hlc">代码沙箱动态运行 + 浏览器修改源码</td></tr>
+            <tr><td>修改迭代</td><td>回平台改配置 → 重新发布</td><td class="hlc">直接改源码实时生效，或回平台继续对话</td></tr>
+            <tr><td>需求沉淀</td><td>无历史追踪，工作流即最终态</td><td class="hlc">结构化文档持久化（proposal/design/acceptance）</td></tr>
+            <tr><td>适用场景</td><td>AI 客服、知识库、自动化流程</td><td class="hlc">开发完整业务系统、功能模块、内部工具</td></tr>
+            <tr><td>锁定程度</td><td style="color:var(--orange);">锁定在平台生态</td><td class="hlc"><span style="color:var(--green);">代码即资产，随时独立部署</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 8 ══ -->
+  <div class="slide" data-i="7">
+    <div>
+      <div class="tag an">核心竞争力</div>
+      <h2 class="an d1">四个不可替代的差异</h2>
+      <div class="grid g2 mt12" style="gap:12px;">
+        <div class="card an d2" style="border-left:3px solid var(--blue);">
+          <div class="flex ac gap4 mb8"><span style="font-size:22px;">🎯</span><h4 style="margin:0;font-size:14px;">产出可运行的独立代码</h4></div>
+          <p style="font-size:12px;">Dify/Coze 产出平台配置——离开平台无法运行。星云产出<strong>完整代码库</strong>，可 Git 管理、可部署。这是"工具"和"工厂"的本质区别。</p>
+        </div>
+        <div class="card an d3" style="border-left:3px solid var(--green);">
+          <div class="flex ac gap4 mb8"><span style="font-size:22px;">🏃</span><h4 style="margin:0;font-size:14px;">代码沙箱：生成即运行</h4></div>
+          <p style="font-size:12px;">代码生成不是终点。星云提供<strong>在线沙箱</strong>，生成后即可在浏览器运行。用户<strong>直接修改源码</strong>实时生效，告别"改配置→重发布"循环。</p>
+        </div>
+        <div class="card an d4" style="border-left:3px solid var(--orange);">
+          <div class="flex ac gap4 mb8"><span style="font-size:22px;">📄</span><h4 style="margin:0;font-size:14px;">文档驱动的编码质量</h4></div>
+          <p style="font-size:12px;">不是简单甩需求给 AI。先沉淀<strong>结构化文档</strong>（proposal→design→acceptance），让 AI 理解业务上下文后再编码。需求变更可追溯。</p>
+        </div>
+        <div class="card an d5" style="border-left:3px solid var(--rose);">
+          <div class="flex ac gap4 mb8"><span style="font-size:22px;">👤</span><h4 style="margin:0;font-size:14px;">站在 PM 的视角</h4></div>
+          <p style="font-size:12px;">所有平台以<strong>开发者</strong>为中心。星云使用者是<strong>讲业务需求的产品经理</strong>。平台承担"需求→指令"的翻译。这是产品出发点的根本差异。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 9 ══ -->
+  <div class="slide" data-i="8">
+    <div>
+      <div class="tag an">架构概览</div>
+      <h2 class="an d1">平台架构</h2>
+      <p class="mt8 an d2 maxw">两层引擎 + 公共服务 + 数据层，每层各司其职。</p>
+      <div class="grid g3 mt12 an d3">
+        <div class="card">
+          <span class="ic">🏗</span>
+          <h4>构建引擎 <span style="font-weight:400;color:var(--text3);">Build</span></h4>
+          <p>PM 对话 Agent（LangGraph）→ 文档生成 → Skill 匹配 → 编码调度 → 构建验证 + 打包</p>
+          <p class="mt8" style="font-size:11px;color:var(--text3);">Session 用完即焚 / 产出版本化 Build Artifact</p>
+        </div>
+        <div class="card">
+          <span class="ic">⚡</span>
+          <h4>运行时引擎 <span style="font-weight:400;color:var(--text3);">Runtime</span></h4>
+          <p>LangGraph 集群 + MCP Gateway + A2A Gateway + 代码沙箱</p>
+          <p class="mt8" style="font-size:11px;color:var(--text3);">持续运行，弹性集群</p>
+        </div>
+        <div class="card">
+          <span class="ic">📊</span>
+          <h4>公共服务 <span style="font-weight:400;color:var(--text3);">Services</span></h4>
+          <p>Agent / Skill 管理、MCP / A2A Registry、监控告警</p>
+          <p class="mt8" style="font-size:11px;color:var(--text3);">数据：PostgreSQL + Redis + 对象存储</p>
+        </div>
+      </div>
+      <div class="pills an d4">
+        <span class="pill">🔗 MCP — 外部工具协议</span>
+        <span class="pill">🤝 A2A — Agent 间通信</span>
+        <span class="pill">🐍 Python 后端 · React 前端</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 11 ══ -->
+  <div class="slide" data-i="10">
+    <div>
+      <div class="tag an">星云 · Nebula</div>
+      <h1 class="an d1">不只是又一个<br><span class="hl">Agent 平台</span></h1>
+      <p class="lead mt12 an d2 maxw">是一个全新的品类——<br>产品经理和代码之间的<strong>翻译层</strong>。</p>
+      <div class="grid g4 mt16 an d3">
+        <div class="card" style="border-top:2px solid var(--blue);">
+          <div style="font-size:22px;font-weight:700;color:var(--blue);">📥</div>
+          <h4>输入</h4><p>PRD / 自然语言 / 历史项目</p>
+        </div>
+        <div class="card" style="border-top:2px solid var(--green);">
+          <div style="font-size:22px;font-weight:700;color:var(--green);">⚙</div>
+          <h4>处理</h4><p>LangGraph + Skill + LLM</p>
+        </div>
+        <div class="card" style="border-top:2px solid var(--orange);">
+          <div style="font-size:22px;font-weight:700;color:var(--orange);">🤖</div>
+          <h4>编码</h4><p>Claude Code + Docker 沙箱</p>
+        </div>
+        <div class="card" style="border-top:2px solid var(--rose);">
+          <div style="font-size:22px;font-weight:700;color:var(--rose);">📦</div>
+          <h4>产出</h4><p>独立代码库 + 可运行沙箱</p>
+        </div>
+      </div>
+      <p class="an d4 mt16" style="font-size:15px;font-weight:500;color:var(--text);">"星云深处，万物始生。"</p>
+    </div>
+  </div>
+
+  <!-- ══ 10 ══ -->
+  <div class="slide" data-i="9">
+    <div>
+      <div class="tag an">部署模型</div>
+      <h2 class="an d1">工厂，不是运行环境</h2>
+      <p class="mt8 an d2 maxw" style="font-size:15px;font-weight:500;color:var(--blue);">星云是工厂，不是运行环境。客户买的是软件资产，不是平台订阅。</p>
+
+      <div class="sp an d3" style="gap:20px;">
+        <div style="border:1px solid var(--card-border);border-radius:var(--radius);padding:14px;">
+          <h3 style="font-size:13px;color:var(--blue);margin-bottom:6px;">🏗 nebula-platform · Build Mode</h3>
+          <p style="font-size:12px;">星云平台完整版，构建+运行时引擎全量部署。PM 完成需求对话、文档生成、编码调度、<strong>构建验证</strong>。</p>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+            <span style="font-size:11px;background:var(--blue-light);color:var(--blue);padding:2px 8px;border-radius:10px;">PM 对话 Agent</span>
+            <span style="font-size:11px;background:var(--blue-light);color:var(--blue);padding:2px 8px;border-radius:10px;">文档生成</span>
+            <span style="font-size:11px;background:var(--blue-light);color:var(--blue);padding:2px 8px;border-radius:10px;">Skill 匹配</span>
+            <span style="font-size:11px;background:var(--blue-light);color:var(--blue);padding:2px 8px;border-radius:10px;">编码调度</span>
+            <span style="font-size:11px;background:var(--blue-light);color:var(--blue);padding:2px 8px;border-radius:10px;">构建验证</span>
+            <span style="font-size:11px;background:var(--blue-light);color:var(--blue);padding:2px 8px;border-radius:10px;">沙箱运行</span>
+          </div>
+        </div>
+        <div style="border:1px solid var(--card-border);border-radius:var(--radius);padding:14px;border-color:var(--green);">
+          <h3 style="font-size:13px;color:var(--green);margin-bottom:6px;">🚀 nebula-runtime · Run Mode</h3>
+          <p style="font-size:12px;"><strong>两个独立代码库</strong>：星云给客户的不是"一个平台减配"，而是一个<strong>干净的</strong>运行平台。客户部署时只有 nebula-runtime + Build Artifact + 必要服务。</p>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+            <span style="font-size:11px;background:#e6f7ed;color:var(--green);padding:2px 8px;border-radius:10px;">LangGraph 集群</span>
+            <span style="font-size:11px;background:#e6f7ed;color:var(--green);padding:2px 8px;border-radius:10px;">MCP / A2A Gateway</span>
+            <span style="font-size:11px;background:#e6f7ed;color:var(--green);padding:2px 8px;border-radius:10px;">Build Artifact</span>
+            <span style="font-size:11px;background:#e6f7ed;color:var(--green);padding:2px 8px;border-radius:10px;">Postgres / Redis</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid g2 an d4 mt8" style="gap:10px;">
+        <div class="card" style="border-left:3px solid var(--blue);padding:10px 14px;">
+          <p style="font-size:11px;color:var(--text2);margin:0;"><strong style="color:var(--text);">不是"同一个平台的不同模式"。</strong>nebula-platform 和 nebula-runtime 是<strong>两个独立的部署单元</strong>。客户拿到的 nebula-runtime 没有任何构建引擎和平台管理逻辑，绝对干净。运行平台可公开镜像，客户也能审计。</p>
+        </div>
+        <div class="card" style="border-left:3px solid var(--green);padding:10px 14px;">
+          <p style="font-size:11px;color:var(--text2);margin:0;"><strong style="color:var(--text);">Python 构建 = 验证 + 打包。</strong>星云后端是 Python，产出也是 Python——不需要编译。构建容器在编码完成后验证依赖安装、模块导入、跑测试，然后打出版本化的 Build Artifact。Artifact 可被 nebula-runtime 直接动态加载运行。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Single shared navigation ─── -->
+  <div class="nav">
+    <button class="nav-btn" id="prevBtn">←</button>
+    <div class="dots" id="dots"></div>
+    <button class="nav-btn" id="nextBtn">→</button>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  // ── Navigation ──
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+  const dotsEl = document.getElementById('dots');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const fsBtn = document.getElementById('fsBtn');
+  const frame = document.getElementById('frame');
+  const pageNum = document.getElementById('pageNum');
+
+  for (let i = 0; i < total; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.addEventListener('click', () => go(i));
+    dotsEl.appendChild(d);
+  }
+
+  function go(i) {
+    if (i < 0 || i >= total || i === current) return;
+    slides[current].classList.remove('active');
+    dotsEl.children[current].classList.remove('active');
+    current = i;
+    slides[current].classList.add('active');
+    dotsEl.children[current].classList.add('active');
+    slides[current].scrollTop = 0;
+    pageNum.textContent = String(current + 1).padStart(2, '0') + ' / ' + String(total).padStart(2, '0');
+  }
+
+  prevBtn.addEventListener('click', () => go(current - 1));
+  nextBtn.addEventListener('click', () => go(current + 1));
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft') go(current - 1);
+    if (e.key === 'ArrowRight') go(current + 1);
+    if (e.key === 'f' || e.key === 'F') toggleFS();
+  });
+
+  let sx = 0;
+  document.addEventListener('touchstart', e => { sx = e.changedTouches[0].screenX; });
+  document.addEventListener('touchend', e => {
+    const d = sx - e.changedTouches[0].screenX;
+    if (Math.abs(d) > 50) { d > 0 ? go(current + 1) : go(current - 1); }
+  });
+
+  function toggleFS() {
+    if (!document.fullscreenElement) {
+      frame.requestFullscreen().then(() => { frame.classList.add('fullscreen'); }).catch(() => {});
+    } else {
+      document.exitFullscreen().then(() => { frame.classList.remove('fullscreen'); }).catch(() => {});
+    }
+  }
+  fsBtn.addEventListener('click', toggleFS);
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) frame.classList.remove('fullscreen');
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ./reef-intent-detect.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ./reef-block-dangerous.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ./reef-protect-files.sh"
+          },
+          {
+            "type": "prompt",
+            "timeout": 5,
+            "prompt": "You are about to write or edit a file. If the target file extension is .java, load reef-style-backend skill for coding standards. If the target is .ts, .html, .css, .scss, or .less, load reef-style-frontend skill for coding standards. Follow the loaded skill's rules in your output."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ./reef-auto-format.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ./reef-run-tests.sh",
+            "if": "Edit(*.ts)|Write(*.ts)",
+            "async": true,
+            "statusMessage": "Running tests..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ./reef-run-tests.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

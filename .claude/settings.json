@@ -1,0 +1,99 @@
+{
+  "deepstorm": {
+    "reef": {
+      "techs": "frontend,backend",
+      "frontend": {
+        "framework": "react",
+        "uiLibrary": "antd",
+        "tsConfig": "strict",
+        "css": "tailwind",
+        "test": "vitest"
+      },
+      "backend": {
+        "language": "python",
+        "python": {
+          "framework": "fastapi",
+          "orm": "sqlalchemy",
+          "dbMigration": "alembic",
+          "ai": "langchain",
+          "test": "pytest",
+          "typeChecker": "mypy",
+          "formatter": "ruff"
+        }
+      }
+    },
+    "installedSkills": [
+      "reef-commit",
+      "reef-gen-backend",
+      "reef-gen-frontend",
+      "reef-harden",
+      "reef-pr",
+      "reef-review",
+      "reef-scope",
+      "reef-start",
+      "reef-style-backend",
+      "reef-style-frontend",
+      "reef-testcase"
+    ],
+    "installedAt": "2026-07-06T02:17:28.384Z",
+    "mcpCapabilities": {
+      "issue_tracker": {
+        "available": false,
+        "providers": []
+      },
+      "knowledge_base": {
+        "available": false,
+        "providers": []
+      },
+      "design_tools": {
+        "available": false,
+        "providers": []
+      }
+    },
+    "installedMcpServers": [
+      "github",
+      "context7"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "deepstorm-github",
+    "deepstorm-context7"
+  ],
+  "mcpServers": {
+    "deepstorm-github": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "dotenv-cli",
+        "-e",
+        ".env",
+        "--",
+        "docker",
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ]
+    },
+    "deepstorm-context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "dotenv-cli",
+        "-e",
+        ".env",
+        "--",
+        "npx",
+        "-y",
+        "@upstash/context7-mcp"
+      ]
+    }
+  },
+  "sandbox": {
+    "enabled": false
+  }
+}
