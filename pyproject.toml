@@ -1,0 +1,12 @@
+[project]
+name = "nebula"
+version = "0.1.0"
+description = "Nebula AI Agent Platform"
+requires-python = ">=3.11"
+
+[tool.uv.workspace]
+members = [
+    "packages/build-engine/backend",
+    "packages/runtime-engine",
+    "packages/shared-python",
+]

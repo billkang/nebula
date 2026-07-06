@@ -8,7 +8,7 @@ import pytest
 from app.services.sandbox_service import SandboxService
 from app.services.build_service import BuildService
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 @pytest.fixture(autouse=True)
