@@ -35,5 +35,4 @@ htmlcov/
 .env
 
 # Build outputs
-projects/*/artifacts/
-projects/*/src/
+projects/

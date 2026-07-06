@@ -1,4 +1,5 @@
-"""集成测试 — 完整链路：注册 → 登录 → 创建项目 → 创建会话 → 发送消息"""
+"""集成测试 — 完整链路：注册 → 登录 → 创建项目 → 创建会话 → 发送消息 + runtime 降级"""
+from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
@@ -208,3 +209,32 @@ def test_docs_list_with_session_context(client: TestClient, db):
     # 获取指定类型文档（可能不存在，返回 404）
     resp = client.get(f"/api/v1/projects/{pid}/docs/nonexistent", headers=headers)
     assert resp.status_code == 404
+
+
+def test_build_runtime_unavailable_graceful_degradation(client: TestClient, db):
+    """Runtime 不可用时构建 API 不因为 runtime 而崩溃。"""
+    from unittest.mock import patch
+    from app.models.user import User, UserRole
+    from app.services.auth_service import hash_password
+
+    admin = User(username="grace2_admin", email="grace2@test.com",
+                 password=hash_password("grace2"), role=UserRole.ADMIN)
+    db.add(admin)
+    db.commit()
+
+    resp = client.post("/api/v1/auth/login",
+                       json={"username": "grace2_admin", "password": "grace2"})
+    token = resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.post("/api/v1/projects", json={"name": "降级测试2"},
+                       headers=headers)
+    assert resp.status_code == 200
+    pid = resp.json()["id"]
+
+    # Mock the runtime_url to point to a non-existent server
+    with patch("app.services.runtime_client.settings.runtime_url", "http://localhost:19999"):
+        resp = client.get(f"/api/v1/projects/{pid}/build/status", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "status" in data

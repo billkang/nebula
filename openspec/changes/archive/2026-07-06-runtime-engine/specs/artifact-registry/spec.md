@@ -78,8 +78,12 @@ The registry SHALL expose an API for platform integration:
 - **THEN** the next registration SHALL assign `v4` (no gap filling)
 
 ### Requirement: Version rollback
-The registry SHALL support rolling back to a previous artifact version by re-tagging it.
+The registry SHALL support rolling back to a previous artifact version by re-tagging it as the active deployment target.
 
 #### Scenario: Rollback to previous version
 - **WHEN** PM triggers a rollback to `v1`
-- **THEN** runtime loads `v1` instead of the current version, and `v1` status changes to `running`
+- **THEN** the registry sets `v1` status to `ready` (the version is prepared for deployment; call `/api/v1/runtime/start` to load and run it)
+
+#### Scenario: Full rollback flow (rollback + start)
+- **WHEN** version `v1` is rolled back and PM starts the runtime with version `v1`
+- **THEN** runtime loads `v1` and its status changes to `running`
