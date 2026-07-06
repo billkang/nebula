@@ -8,7 +8,8 @@ executor_router = APIRouter(prefix="/projects/{project_id}/execute", tags=["exec
 
 @executor_router.post("")
 def execute(project_id: str, user: User = Depends(get_current_user)):
-    return ExecutorService.execute(project_id)
+    svc = ExecutorService()
+    return svc.execute(project_id)
 
 
 @executor_router.get("/status")

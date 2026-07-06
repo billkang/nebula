@@ -1,0 +1,14 @@
+.git/
+.gitignore
+.env
+__pycache__/
+*.pyc
+node_modules/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+artifacts/
+projects/
+_bmad-output/
+.claude/
+docs/superpowers/plans/

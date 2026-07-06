@@ -9,7 +9,7 @@ build_router = APIRouter(prefix="/projects/{project_id}/build", tags=["build"])
 
 @build_router.post("")
 def trigger_build(project_id: str, user: User = Depends(get_current_user)):
-    return BuildService.build(project_id)
+    return BuildService().build(project_id)
 
 
 @build_router.get("/status")

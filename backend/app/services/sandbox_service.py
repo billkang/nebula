@@ -454,7 +454,7 @@ class SandboxService:
             return result
 
         # 2. 同步构建：等待完成
-        result = BuildService.build(project_id, source_dir=str(sandbox_dir))
+        result = BuildService().build(project_id, source_dir=str(sandbox_dir))
 
         # 3. 更新沙箱元数据的 artifact_version
         if result.get("status") == "success":

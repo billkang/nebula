@@ -1,4 +1,5 @@
 """SandboxService 单元测试"""
+from unittest.mock import patch, MagicMock
 import json, os, shutil
 from pathlib import Path
 
@@ -346,7 +347,16 @@ class TestRebuild:
             "def test_placeholder():\n    assert True\n", encoding="utf-8"
         )
 
-        result = SandboxService.trigger_rebuild(project_id)
+        from app.services.coder_backend import BuildResult
+        mock_backend = MagicMock()
+        mock_backend.execute_build.return_value = BuildResult(
+            status="success",
+            artifact_path=str(sandbox_dir / "artifacts" / "v2" / "artifact.tar.gz"),
+            version="v2",
+            message="mock build completed",
+        )
+        with patch("app.services.build_service.create_backend", return_value=mock_backend):
+            result = SandboxService.trigger_rebuild(project_id)
         assert "snapshot_id" in result
         assert result.get("status") == "success" or result.get("status") == "testing"
 
