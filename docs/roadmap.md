@@ -1,13 +1,13 @@
 # 星云 · Nebula — 产品路线图
 
 > 最后更新：2026-07-06
-> 状态：MVP 代码已完成，进入后续阶段规划
+> 状态：Phase 1a（runtime-engine）✅, Phase 1b（code-sandbox）✅
 
 ---
 
 ## 当前状态
 
-MVP v1（Phase 0）已全部完成，核心链路跑通：
+MVP v1（Phase 0）已全部完成。Phase 1a（runtime-engine）和 Phase 1b（code-sandbox）已实现。
 
 | 模块 | 状态 |
 |---|---|
@@ -20,7 +20,9 @@ MVP v1（Phase 0）已全部完成，核心链路跑通：
 | 编码执行器（subprocess Claude Code） | ✅ |
 | 构建验证器（测试 + 打包 Artifact） | ✅ |
 | 前端（所有页面 + 组件） | ✅ |
-| 测试（32/32 全过） | ✅ |
+| 运行时引擎（nebula-runtime） | ✅ |
+| 代码沙箱（Monaco Editor + 快照 + Diff + 重建） | ✅ |
+| 测试 | **88/88 全过** |
 
 ---
 
@@ -28,8 +30,8 @@ MVP v1（Phase 0）已全部完成，核心链路跑通：
 
 | Phase | Change | 路径 | 状态 |
 |---|---|---|---|
-| 1a | `runtime-engine` | `openspec/changes/runtime-engine/` | ⏳ 未开始 |
-| 1b | `code-sandbox` | `openspec/changes/code-sandbox/` | ⏳ 未开始 |
+| 1a | `runtime-engine` | `openspec/changes/runtime-engine/` | ✅ **已实现**（28 测试通过） |
+| 1b | `code-sandbox` | `openspec/changes/code-sandbox/` | ✅ **已实现**（26 测试通过） |
 | 2 | `docker-executor` | `openspec/changes/docker-executor/` | ⏳ 未开始 |
 | 3 | `skill-system` | `openspec/changes/skill-system/` | ⏳ 未开始 |
 | 4 | `protocol-gateway` | `openspec/changes/protocol-gateway/` | ⏳ 未开始 |
@@ -43,79 +45,37 @@ MVP v1（Phase 0）已全部完成，核心链路跑通：
 
 ```
 Phase 1 ─→ Phase 2 ─→ Phase 3 ─→ Phase 4 ─→ Phase 5
- 运行时引擎     Docker       Skill      协议网关     基础设施
- + 代码沙箱     容器化       体系       A2A/MCP     完善
-               编码执行                  Gateway
+ 运行时引擎       Docker       Skill      协议网关     基础设施
+ + 代码沙箱       容器化       体系       A2A/MCP     完善
+                 编码执行                  Gateway
 ```
 
 ---
 
-## Phase 1：运行时引擎 + 代码沙箱
+## Phase 1：运行时引擎 + 代码沙箱 ✅
 
 **目标：让 MVP 产出的代码真正可见可跑，PM 能在浏览器预览和微调**
 
-### 1.1 运行时引擎（nebula-runtime）
+### 1.1 运行时引擎（nebula-runtime）✅
 
-- **独立的轻量代码库**，可独立部署，不含构建引擎和平台管理逻辑
-- 职责：加载 Build Artifact → 启动业务应用 → PM 浏览器访问
-- 运行平台本身可公开镜像，客户能自主审计
-- 运行平台升级不影响已部署的业务代码
+- **独立的轻量代码库**，可独立部署
+- Artifact Registry（注册/列裴/获取/删除版本，自动递增，完整性校验）
+- Docker 容器管理（构建/运行/停止/日志/状态，资源限制，健康检查）
+- Runtime API（start/stop/status/logs/push/versions）
+- 平台集成：构建后自动推送 Artifact，前端预览按钮
+- **28 测试通过**
 
-**加载流程：**
-
-```
-Artifact Registry（版本化）
-  ↓ 选择版本
-nebula-runtime 加载 manifest.json
-  → 启动 Docker 容器（基于 Artifact 中的 Dockerfile）
-  → PM 在浏览器中直接看到运行效果
-```
-
-**包含组件：**
-- 运行时 API — 对话/触发
-- LangGraph 集群 — Agent 执行引擎（预留）
-- 公共服务 — PostgreSQL / Redis（预留）
-
-### 1.2 代码沙箱（在开发平台）
+### 1.2 代码沙箱 ✅
 
 - **位置：** nebula-platform，非 nebula-runtime
-- Monaco Editor / CodeMirror 集成
-- PM 可以直接修改 Claude Code 生成的源代码
-- 修改后**手动或自动触发重新构建**
-
-**修改流程：**
-
-```
-PM 在 Monaco Editor 中修改 src/
-  ↓
-点击「重新构建」
-  ↓
-走完整构建管道（测试 → 完整性校验 → 打包）
-  ↓
-生成新 Artifact（版本化，如 v2）
-  ↓
-推送到运行时预览
-```
-
-**沙箱与 MVP 构建管道的整合：**
-
-```
-对话 → 文档 → 编码执行 → 构建 → 推送运行平台
-                                    ↓
-                          ┌─ 确认 → 交付（Artifact 锁定）
-                          │
-                        PM 预览
-                          │
-                     ┌────┴────┐
-                     │         │
-                  满意       不满意
-                              │
-                     Monaco Editor 修改源码
-                              ↓
-                        重新构建（新版本）
-                              ↓
-                        推送到运行平台重新预览
-```
+- Monaco Editor 集成（语法高亮、代码折叠、多语言支持）
+- 文件树面板（递归展开/折叠、修改标记、文件图标）
+- 工作区管理：从 Artifact 提取源码到隔离沙箱目录
+- 快照管理：自动创建 + 手动快照 + 从快照恢复（保留最近 10 个）
+- Diff 对比：当前工作区 vs 原始 Artifact（行级 unified diff）
+- 一键重建：自动快照 → BuildService 从沙箱构建 → 推送到 runtime
+- `Ctrl+S` 快捷保存、未保存标记、重建进度展示
+- **26 测试通过**
 
 ### 1.3 交付验收闭环
 
@@ -123,7 +83,7 @@ PM 在 Monaco Editor 中修改 src/
 PM 在浏览器中预览运行效果
   → PM 确认 ✓ / 驳回 ✗
     ├── 确认 → Artifact 标记为「可交付」，锁定设计文档版本
-    └── 驳回 → 回退到对话 / 进入沙箱修改 → 重新构建
+    └── 驳回 → 进入沙箱修改源代码 → 重建 → 重新预览
 ```
 
 ### 关键设计
@@ -132,13 +92,6 @@ PM 在浏览器中预览运行效果
 - 修改后**重新走构建管道**，生成新的 Artifact 版本
 - 运行平台**只管加载 Artifact 运行预览**，不做修改
 - Artifact Registry 保存所有历史版本，可回退
-
-### Openspec Changes
-
-| Change | 路径 | 内容 |
-|---|---|---|
-| `runtime-engine` | `openspec/changes/runtime-engine/` | nebula-runtime 独立代码库 + Artifact 加载运行 |
-| `code-sandbox` | `openspec/changes/code-sandbox/` | Monaco Editor + 修改后重构建 + 推送运行时预览 |
 
 ---
 
@@ -204,12 +157,6 @@ LLM 生成 Skill
   → 版本化：上线后支持 A/B 对比、回退
 ```
 
-### Openspec Change
-
-| Change | 路径 | 内容 |
-|---|---|---|
-| `skill-system` | `openspec/changes/skill-system/` | Skill 模板框架 + 首批 7 个 Skill + 匹配逻辑 |
-
 ---
 
 ## Phase 4：协议网关
@@ -222,12 +169,6 @@ LLM 生成 Skill
 | MCP Gateway | 外部工具调用代理 |
 | A2A Registry | Agent 间通信注册中心 |
 | A2A Gateway | Agent 间通信代理 |
-
-### Openspec Change
-
-| Change | 路径 | 内容 |
-|---|---|---|
-| `protocol-gateway` | `openspec/changes/protocol-gateway/` | MCP Gateway + A2A Gateway + 注册中心 |
 
 ---
 
@@ -242,18 +183,12 @@ LLM 生成 Skill
 | OAuth / SSO | 第三方登录支持 |
 | 监控告警 | 平台自身 + Agent 运行时监控 |
 
-### Openspec Change
-
-| Change | 路径 | 内容 |
-|---|---|---|
-| `infrastructure` | `openspec/changes/infrastructure/` | PG 迁移 + 多租户 + OAuth + 监控 |
-
 ---
 
 ## Phase 依赖关系图
 
 ```
-Phase 1（运行时+沙箱）
+Phase 1（运行时+沙箱）✅
   │
   ├── Phase 2（Docker 容器化）
   │     │
@@ -262,7 +197,7 @@ Phase 1（运行时+沙箱）
   └───────────────────────────────────────── Phase 5（基础设施）
 ```
 
-- Phase 1 无前置依赖，最优先
+- Phase 1 无前置依赖，最优先 ✅
 - Phase 2 无前置依赖，可与 Phase 1 并行
 - Phase 3 依赖 Phase 2（容器化后才能稳定执行 Skill 生成的编码指令）
 - Phase 4 依赖 Phase 3（Skill 体系完善后才需要多 Agent 协作）
@@ -270,16 +205,11 @@ Phase 1（运行时+沙箱）
 
 ---
 
-## 附录：MVP 架构参考
+## 测试统计
 
-详见 [平台架构文档](agents/platform-architecture.md)
-
-### 关键决策记录
-
-| 决策 | 结论 |
+| 套件 | 数量 |
 |---|---|
-| 部署模型 | Build Mode（nebula-platform）与 Run Mode（nebula-runtime）作为**两个独立部署单元** |
-| 代码沙箱 | 在开发平台修改 → 构建管道 → 推送运行时预览 |
-| 编码执行 | v1 本地 subprocess → v2 Docker 容器化（抽象 CoderBackend 接口） |
-| Skill 生产 | MVP 先 LLM 自动生成，后续人工沉淀 |
-| 产物形态 | 独立代码库，可 Git 管理、可独立部署、可脱离平台运行 |
+| platform 后端（认证/项目/Agent/集成） | 34 |
+| nebula-runtime（注册表/运行时 API/集成） | 28 |
+| 代码沙箱（SandboxService/Sandbox API） | 26 |
+| **合计** | **88** |
