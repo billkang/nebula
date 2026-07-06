@@ -121,12 +121,92 @@ Agent 部署后持续运行：
 
 ## 快速开始
 
-_Coming soon..._
+### 前置条件
+
+- **Python 3.11+**（推荐 3.12）
+- **Node.js 18+**（推荐 20 LTS）
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview)（编码执行器使用，可选）
+- 包管理工具：`pip` + `npm`
+
+### 第一步：启动后端
+
+后端是 FastAPI 服务，提供 REST API。
 
 ```bash
-# 启动开发环境
-# TODO
+# 1. 进入后端目录
+cd backend
+
+# 2. 配置环境变量
+cp .env.example .env
+# 编辑 .env 可修改数据库路径、JWT Secret、内置用户密码等
+
+# 3. 安装依赖
+pip install -r requirements.txt
+
+# 4. 初始化数据库（建表 + 迁移）
+alembic upgrade head
+
+# 5. 初始化内置用户（admin / pm）
+python seed.py
+
+# 6. 启动开发服务器
+uvicorn app.main:app --reload --port 8000
 ```
+
+后端启动后，API 文档自动可用：
+- Swagger UI：http://localhost:8000/docs
+- ReDoc：http://localhost:8000/redoc
+
+### 第二步：启动前端
+
+```bash
+# 1. 进入前端目录
+cd frontend
+
+# 2. 安装依赖
+npm install
+
+# 3. 启动开发服务器
+npm run dev
+```
+
+前端开发服务器 → http://localhost:5173
+
+### 访问平台
+
+打开 http://localhost:5173 ，使用以下内置账号登录：
+
+| 角色 | 用户名 | 密码 | 权限说明 |
+|------|--------|------|---------|
+| 管理员 | `admin` | `123456` | 全部权限（含删除项目） |
+| 产品经理 | `pm` | `123456` | 使用平台，创建对话和项目 |
+
+> 开发模式下，Vite 自动将 `/api/*` 请求代理到 `http://localhost:8000`，无需手动处理跨域。生产部署时，前端构建产物由 FastAPI 静态文件服务托管。
+
+### 校验是否启动成功
+
+```bash
+# 终端 1 — 后端应输出类似：
+# INFO:     Uvicorn running on http://127.0.0.1:8000
+
+# 终端 2 — 前端应输出类似：
+# VITE v5.x  ready in xxx ms
+# ➜  Local:   http://localhost:5173/
+
+# 测试 API 是否在线：
+curl http://localhost:8000/api/v1/auth/me -H "Authorization: Bearer test" -w "\nHTTP %{http_code}"
+# 应返回 401（未认证），说明服务正常
+```
+
+### 常见问题
+
+| 问题 | 解决 |
+|------|------|
+| `alembic upgrade head` 报错 | 确保已在 `backend/` 目录下执行，且 `.env` 已创建 |
+| `pip install` 卡住 | 尝试 `pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple`（国内镜像） |
+| 前端请求后端 502 | 检查后端是否正在运行，端口 8000 未被占用 |
+| `port 5173 already in use` | `npm run dev -- --port 5174` 使用其他端口 |
+| SQLite 数据库位置 | 默认在 `backend/nebula.db`，可通过 `.env` 的 `DATABASE_URL` 修改 |
 
 ---
 
