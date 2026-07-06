@@ -7,7 +7,7 @@ SHA := $(shell git rev-parse --short HEAD 2>/dev/null || echo "dev")
 .PHONY: dev
 dev:
 	@echo "Starting development servers..."
-	@./start.sh
+	@./scripts/start.sh
 
 # ── Testing ─────────────────────────────────────────────────
 .PHONY: test test-backend test-runtime test-frontend
@@ -19,7 +19,7 @@ test-runtime:
 	cd packages/runtime-engine && uv run pytest -v
 
 test-frontend:
-	cd packages/build-engine/frontend && npm test 2>/dev/null || echo "No test script defined for frontend"
+	cd packages/build-engine/frontend && pnpm test 2>/dev/null || echo "No test script defined for frontend"
 
 test-unchecked:
 	cd packages/build-engine/backend && uv run pytest -v
@@ -49,3 +49,15 @@ build-builder-image:
 	DOCKER_BUILDKIT=1 docker build -t nebula-builder:latest -t nebula-builder:$(SHA) -f docker/builder/Dockerfile .
 
 build-images: build-coder-image build-builder-image
+
+# ── build-engine Docker Compose ────────────────────────────
+.PHONY: build-engine up-engine down-engine
+
+build-engine:
+	cd docker && docker compose build
+
+up-engine:
+	cd docker && docker compose up -d
+
+down-engine:
+	cd docker && docker compose down
