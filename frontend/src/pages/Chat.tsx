@@ -16,6 +16,8 @@ export default function Chat() {
   const [reqSummary, setReqSummary] = useState('');
   const [execStatus, setExecStatus] = useState('idle');
   const [buildStatus, setBuildStatus] = useState('idle');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [runtimeStatus, setRuntimeStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) api.sessions.create(id).then((s) => setSessionId(s.id));
@@ -64,6 +66,8 @@ export default function Chat() {
     setBuildStatus('running');
     const r = await api.build.trigger(id);
     setBuildStatus(r.status);
+    if (r.preview_url) setPreviewUrl(r.preview_url);
+    if (r.runtime_status) setRuntimeStatus(r.runtime_status);
   };
 
   useEffect(() => { msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -128,6 +132,33 @@ export default function Chat() {
               <StatusBadge status={buildStatus} />
             </div>
             {buildStatus === 'success' && <p className="text-sm text-green-600 mt-2">✅ 构建完成</p>}
+            {previewUrl && (
+              <div className="mt-3 flex gap-2">
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  🚀 在 Runtime 中预览
+                </a>
+                <Link
+                  to={`/projects/${id}/sandbox`}
+                  className="px-3 py-1 text-sm bg-amber-500 text-white rounded-md hover:bg-amber-600"
+                >
+                  ✏️ 在沙箱中编辑
+                </Link>
+                <Link
+                  to={`/projects/${id}/docs`}
+                  className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                >
+                  查看文档
+                </Link>
+              </div>
+            )}
+            {runtimeStatus === 'runtime_unavailable' && (
+              <p className="text-xs text-amber-600 mt-1">Runtime 未运行，可稍后手动部署</p>
+            )}
           </div>
         )}
         <div ref={msgEndRef} />

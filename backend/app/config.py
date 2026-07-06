@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     admin_password: str = "123456"
     pm_username: str = "pm"
     pm_password: str = "123456"
+    runtime_url: str = "http://localhost:8001"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

@@ -62,10 +62,46 @@ export const api = {
   },
   build: {
     trigger: (pid: string) =>
-      request<{ status: string; message?: string }>(`/projects/${pid}/build`, { method: 'POST' }),
+      request<{ status: string; message?: string; artifact_version?: string; runtime_status?: string; preview_url?: string }>(`/projects/${pid}/build`, { method: 'POST' }),
     status: (pid: string) =>
-      request<{ status: string; message?: string }>(`/projects/${pid}/build/status`),
+      request<{ status: string; message?: string; artifact_version?: string; runtime_status?: string; preview_url?: string }>(`/projects/${pid}/build/status`),
     artifacts: (pid: string) =>
       request<Array<{ version: string; created_at: string; path: string }>>(`/projects/${pid}/build/artifacts`),
+    deploy: (pid: string, version: string) =>
+      request<{ status: string; message?: string }>(`/projects/${pid}/build/deploy?version=${version}`, { method: 'POST' }),
+    runtimeStatus: (pid: string) =>
+      request<{ status: string; url?: string }>(`/projects/${pid}/build/runtime-status`),
+  },
+  sandbox: {
+    init: (pid: string, version?: string) =>
+      request<{ data: any; error: string | null }>(`/projects/${pid}/sandbox/init${version ? `?artifact_version=${version}` : ''}`, { method: 'POST' }),
+    files: (pid: string) =>
+      request<{ data: { files: any[]; meta: any }; error: string | null }>(`/projects/${pid}/sandbox/files`),
+    getFile: (pid: string, path: string) =>
+      request<{ data: { path: string; content: string }; error: string | null }>(`/projects/${pid}/sandbox/files/${encodePath(path)}`),
+    saveFile: (pid: string, path: string, content: string) =>
+      request<{ data: { path: string; saved: boolean; modified: boolean }; error: string | null }>(`/projects/${pid}/sandbox/files/${encodePath(path)}`, { method: 'PUT', body: { content } }),
+    snapshots: {
+      list: (pid: string) =>
+        request<{ data: any[]; error: string | null }>(`/projects/${pid}/sandbox/snapshots`),
+      create: (pid: string, description?: string) =>
+        request<{ data: any; error: string | null }>(`/projects/${pid}/sandbox/snapshots`, { method: 'POST', body: { description } }),
+      restore: (pid: string, sid: string) =>
+        request<{ data: any; error: string | null }>(`/projects/${pid}/sandbox/restore/${sid}`, { method: 'POST' }),
+    },
+    diff: (pid: string, path: string) =>
+      request<{ data: { path: string; has_diff: boolean; diff: string; summary: string; additions?: number; removals?: number }; error: string | null }>(`/projects/${pid}/sandbox/diff/${encodePath(path)}`),
+    rebuild: (pid: string, description?: string, async?: boolean) =>
+      request<{ data: any; error: string | null }>(`/projects/${pid}/sandbox/rebuild`, { method: 'POST', body: { description, async } }),
+    restoreOriginal: (pid: string, filePath?: string) =>
+      request<{ data: any; error: string | null }>(`/projects/${pid}/sandbox/restore-original`, { method: 'POST', body: filePath ? { file_path: filePath } : {} }),
+    rebuildStatus: (pid: string) =>
+      request<{ data: any; error: string | null }>(`/projects/${pid}/sandbox/rebuild/status`),
+    cancelRebuild: (pid: string) =>
+      request<{ data: any; error: string | null }>(`/projects/${pid}/sandbox/rebuild/cancel`, { method: 'POST' }),
   },
 };
+
+function encodePath(p: string): string {
+  return p.split('/').map(encodeURIComponent).join('/');
+}
