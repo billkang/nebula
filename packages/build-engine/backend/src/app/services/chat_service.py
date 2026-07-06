@@ -116,10 +116,7 @@ class ChatService:
             text = PHASE_RESPONSES.get(new_phase)
             if text:
                 agent_responses.append((new_phase, text))
-        elif new_phase == "collecting":
-            agent_responses.append(("collecting", PHASE_RESPONSES["collecting"]))
-        elif new_phase == "clarifying":
-            agent_responses.append(("clarifying", PHASE_RESPONSES["clarifying"]))
+        # phase 未变化时不重复发送模板消息
 
         # 保存 Agent 响应
         for phase_label, text in agent_responses:
