@@ -29,54 +29,163 @@ export default function Projects() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
   });
 
-  if (isLoading) return <div className="p-8">加载中...</div>;
+  if (isLoading)
+    return (
+      <div className="p-8">
+        <div className="mb-6 flex items-center justify-between">
+          <div className="h-8 w-32 animate-pulse rounded-lg" style={{ background: 'var(--color-border)' }} />
+          <div className="h-10 w-24 animate-pulse rounded-lg" style={{ background: 'var(--color-border)' }} />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="animate-pulse rounded-xl p-6"
+              style={{
+                background: 'var(--color-bg-container)',
+                border: '1px solid var(--color-border)',
+              }}
+            >
+              <div className="mb-3 h-5 w-3/4 rounded" style={{ background: 'var(--color-border)' }} />
+              <div className="h-4 w-1/2 rounded" style={{ background: 'var(--color-border)' }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">项目列表</h1>
-        <button onClick={() => setShowCreate(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+    <div className="p-0">
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-base)' }}>
+          项目列表
+        </h1>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="rounded-lg px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:scale-[1.02]"
+          style={{ background: 'var(--color-primary)' }}
+        >
           创建项目
         </button>
       </div>
+
       {showCreate && (
-        <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-          <h2 className="text-lg font-semibold mb-4">新建项目</h2>
+        <div
+          className="mb-6 rounded-xl p-6 shadow-sm"
+          style={{
+            background: 'var(--color-bg-container)',
+            border: '1px solid var(--color-border)',
+          }}
+        >
+          <h2 className="mb-4 text-lg font-semibold" style={{ color: 'var(--color-text-base)' }}>
+            新建项目
+          </h2>
           <div className="space-y-3">
-            <input type="text" placeholder="项目名称" value={name}
+            <input
+              type="text"
+              placeholder="项目名称"
+              value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md" />
-            <textarea placeholder="项目描述（可选）" value={desc}
-              onChange={(e) => setDesc(e.target.value)} className="w-full px-3 py-2 border rounded-md" rows={3} />
+              className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-all duration-150"
+              style={{
+                background: 'var(--color-bg-layout)',
+                borderColor: 'var(--color-border)',
+                color: 'var(--color-text-base)',
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-primary)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+              }}
+            />
+            <textarea
+              placeholder="项目描述（可选）"
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              rows={3}
+              className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-all duration-150"
+              style={{
+                background: 'var(--color-bg-layout)',
+                borderColor: 'var(--color-border)',
+                color: 'var(--color-text-base)',
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-primary)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+              }}
+            />
             <div className="flex gap-2">
-              <button onClick={() => createMut.mutate({ name, description: desc })}
+              <button
+                onClick={() => createMut.mutate({ name, description: desc })}
                 disabled={!name}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
+                className="rounded-lg px-4 py-2 text-sm text-white transition-all duration-200 hover:scale-[1.02] disabled:opacity-40"
+                style={{ background: 'var(--color-primary)' }}
+              >
                 创建
               </button>
-              <button onClick={() => setShowCreate(false)}
-                className="px-4 py-2 border rounded-md hover:bg-gray-50">取消</button>
+              <button
+                onClick={() => setShowCreate(false)}
+                className="rounded-lg border px-4 py-2 text-sm transition-all duration-150"
+                style={{
+                  borderColor: 'var(--color-border)',
+                  color: 'var(--color-text-base)',
+                }}
+              >
+                取消
+              </button>
             </div>
           </div>
         </div>
       )}
+
       {projects?.length === 0 ? (
-        <div className="text-center py-16 text-gray-500">
-          <p className="text-lg mb-2">还没有项目</p>
-          <p>点击「创建项目」开始你的第一个星云项目</p>
+        <div className="py-16 text-center" style={{ color: 'var(--color-text-secondary)' }}>
+          <p className="mb-2 text-lg">还没有项目</p>
+          <p className="text-sm">点击「创建项目」开始你的第一个星云项目</p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {projects?.map((p) => (
-            <div key={p.id} onClick={() => navigate(`/projects/${p.id}`)}
-              className="bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow">
-              <h3 className="font-semibold text-lg mb-2">{p.name}</h3>
-              {p.description && <p className="text-gray-500 text-sm mb-3">{p.description}</p>}
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-gray-400">{new Date(p.created_at).toLocaleDateString('zh-CN')}</span>
-                <button onClick={(e) => { e.stopPropagation(); deleteMut.mutate(p.id); }}
-                  className="text-xs text-red-500 hover:underline">删除</button>
+            <div
+              key={p.id}
+              onClick={() => navigate(`/projects/${p.id}`)}
+              className="cursor-pointer rounded-xl p-6 transition-all duration-200 hover:scale-[1.02]"
+              style={{
+                background: 'var(--color-bg-container)',
+                border: '1px solid var(--color-border)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <h3 className="mb-2 text-base font-semibold" style={{ color: 'var(--color-text-base)' }}>
+                {p.name}
+              </h3>
+              {p.description && (
+                <p className="mb-3 text-sm line-clamp-2" style={{ color: 'var(--color-text-secondary)' }}>
+                  {p.description}
+                </p>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                  {new Date(p.created_at).toLocaleDateString('zh-CN')}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteMut.mutate(p.id);
+                  }}
+                  className="text-xs transition-colors duration-150"
+                  style={{ color: 'var(--color-error)' }}
+                >
+                  删除
+                </button>
               </div>
             </div>
           ))}

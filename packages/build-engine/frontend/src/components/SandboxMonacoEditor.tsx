@@ -1,5 +1,6 @@
 import { useRef, useCallback } from 'react';
 import Editor, { OnMount, OnChange } from '@monaco-editor/react';
+import { useThemeStore } from '../hooks/useTheme';
 
 interface Props {
   value: string;
@@ -36,6 +37,8 @@ export function getLanguage(filename: string): string {
 
 export default function SandboxMonacoEditor({ value, language, readOnly, onChange, onMount }: Props) {
   const editorRef = useRef<any>(null);
+  const theme = useThemeStore((s) => s.theme);
+  const editorTheme = theme === 'dark' ? 'vs-dark' : 'vs';
 
   const handleMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -57,7 +60,7 @@ export default function SandboxMonacoEditor({ value, language, readOnly, onChang
         value={value}
         onChange={handleChange}
         onMount={handleMount}
-        theme="vs"
+        theme={editorTheme}
         options={{
           readOnly: readOnly || false,
           minimap: { enabled: false },

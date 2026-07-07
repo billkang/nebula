@@ -11,14 +11,38 @@ export default function MessageInput({ onSend, disabled }: Props) {
     setInput('');
   };
   return (
-    <form onSubmit={handleSubmit} className="border-t bg-white p-4">
-      <div className="flex gap-2">
-        <input type="text" value={input}
+    <form
+      onSubmit={handleSubmit}
+      className="border-t p-4"
+      style={{
+        borderColor: 'var(--color-border)',
+        background: 'var(--color-bg-container)',
+      }}
+    >
+      <div
+        className="flex items-center gap-2 rounded-xl border p-2"
+        style={{
+          background: 'var(--glass-bg)',
+          borderColor: 'var(--glass-border)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+        }}
+      >
+        <input
+          type="text"
+          value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="输入你的需求..." disabled={disabled}
-          className="flex-1 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" />
-        <button type="submit" disabled={!input.trim() || disabled}
-          className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
+          placeholder="输入你的需求…"
+          disabled={disabled}
+          className="flex-1 bg-transparent px-3 py-2 text-sm outline-none"
+          style={{ color: 'var(--color-text-base)' }}
+        />
+        <button
+          type="submit"
+          disabled={!input.trim() || disabled}
+          className="rounded-lg px-4 py-2 text-sm text-white transition-all duration-200 hover:scale-105 disabled:opacity-40"
+          style={{ background: 'var(--color-primary)' }}
+        >
           发送
         </button>
       </div>

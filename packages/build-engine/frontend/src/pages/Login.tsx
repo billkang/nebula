@@ -23,33 +23,127 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white p-8 rounded-lg shadow-md w-96">
-        <h1 className="text-2xl font-bold text-center mb-2">星云 · Nebula</h1>
-        <p className="text-gray-500 text-center mb-6">AI Agent 中台平台</p>
+    <div
+      className="flex min-h-screen items-center justify-center"
+      style={{ background: 'var(--color-bg-layout)' }}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl p-8 shadow-lg"
+        style={{
+          background: 'var(--color-bg-container)',
+          border: '1px solid var(--color-border)',
+        }}
+      >
+        {/* Logo */}
+        <div className="mb-8 text-center">
+          <span className="text-3xl" style={{ color: 'var(--color-primary)' }}>
+            ✦
+          </span>
+          <h1
+            className="mt-2 text-2xl font-bold"
+            style={{ color: 'var(--color-text-base)' }}
+          >
+            星云
+          </h1>
+          <p
+            className="mt-1 text-sm"
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
+            Nebula · Agent 中台
+          </p>
+        </div>
+
+        {/* 错误提示 */}
+        {error && (
+          <div
+            className="mb-4 rounded-lg px-4 py-3 text-sm"
+            style={{
+              background: 'rgba(239, 68, 68, 0.1)',
+              color: 'var(--color-error)',
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        {/* 表单 */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">用户名</label>
-            <input type="text" value={username}
+            <label
+              className="mb-1.5 block text-sm font-medium"
+              style={{ color: 'var(--color-text-base)' }}
+            >
+              用户名
+            </label>
+            <input
+              type="text"
+              value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required />
+              className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-all duration-150"
+              style={{
+                background: 'var(--color-bg-layout)',
+                borderColor: 'var(--color-border)',
+                color: 'var(--color-text-base)',
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-primary)';
+                e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-primary-bg)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              required
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">密码</label>
-            <input type="password" value={password}
+            <label
+              className="mb-1.5 block text-sm font-medium"
+              style={{ color: 'var(--color-text-base)' }}
+            >
+              密码
+            </label>
+            <input
+              type="password"
+              value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required />
+              className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition-all duration-150"
+              style={{
+                background: 'var(--color-bg-layout)',
+                borderColor: 'var(--color-border)',
+                color: 'var(--color-text-base)',
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-primary)';
+                e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-primary-bg)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-border)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              required
+            />
           </div>
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-          <button type="submit"
-            className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+          <button
+            type="submit"
+            className="w-full rounded-lg py-2.5 text-sm font-medium text-white transition-all duration-200 hover:scale-[1.02]"
+            style={{ background: 'var(--color-primary)' }}
+          >
             登录
           </button>
         </form>
-        <p className="text-center mt-4 text-sm text-gray-500">
-          没有账号？<Link to="/register" className="text-blue-600 hover:underline">注册</Link>
+        <p
+          className="mt-6 text-center text-sm"
+          style={{ color: 'var(--color-text-secondary)' }}
+        >
+          没有账号？{' '}
+          <Link
+            to="/register"
+            style={{ color: 'var(--color-primary)' }}
+            className="hover:underline"
+          >
+            注册
+          </Link>
         </p>
       </div>
     </div>

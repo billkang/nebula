@@ -10,15 +10,28 @@ const phaseLabels: Record<string, string> = {
 export default function MessageBubble({ role, content, phase }: Props) {
   const isUser = role === 'user';
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
-      <div className={`max-w-[70%] rounded-lg p-4 ${
-        isUser ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200'
-      }`}>
+    <div className={`mb-4 flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <div
+        className="animate-[slideUp_0.3s_ease-out] max-w-[75%] rounded-2xl px-4 py-3"
+        style={{
+          background: isUser ? 'var(--color-primary)' : 'var(--color-bg-container)',
+          color: isUser ? '#FFFFFF' : 'var(--color-text-base)',
+          border: isUser ? 'none' : '1px solid var(--color-border)',
+          borderBottomRightRadius: isUser ? 4 : 16,
+          borderBottomLeftRadius: isUser ? 16 : 4,
+        }}
+      >
         {phase && !isUser && (
-          <div className="text-xs text-gray-400 mb-1">{phaseLabels[phase] || phase}</div>
+          <div className="mb-1 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+            {phaseLabels[phase] || phase}
+          </div>
         )}
-        {isUser ? <p className="whitespace-pre-wrap">{content}</p> : (
-          <div className="prose prose-sm max-w-none"><ReactMarkdown>{content}</ReactMarkdown></div>
+        {isUser ? (
+          <p className="whitespace-pre-wrap text-sm leading-relaxed">{content}</p>
+        ) : (
+          <div className="prose prose-sm max-w-none" style={{ color: 'var(--color-text-base)' }}>
+            <ReactMarkdown>{content}</ReactMarkdown>
+          </div>
         )}
       </div>
     </div>

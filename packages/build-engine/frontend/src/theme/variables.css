@@ -1,0 +1,33 @@
+/* @nebula/build-engine/frontend — CSS Design Variables */
+/* 运行时由 ThemeProvider JS 更新值，此处为默认浅色主题 */
+
+:root {
+  --color-bg-layout: #f8fafe;
+  --color-bg-container: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-text-base: #1a1a2e;
+  --color-text-secondary: #6b7280;
+  --color-border: #e5e7eb;
+  --color-border-secondary: #f0f0f0;
+  --color-primary: #4a9eff;
+  --color-primary-hover: #3b8cee;
+  --color-primary-bg: #edf4ff;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --sidebar-bg: rgba(255, 255, 255, 0.7);
+  --sidebar-border: rgba(229, 231, 235, 0.5);
+  --sidebar-text: #1a1a2e;
+  --sidebar-text-secondary: #6b7280;
+  --sidebar-active-bg: rgba(74, 158, 255, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(229, 231, 235, 0.5);
+}
+
+/* 平滑主题过渡 */
+*,
+*::before,
+*::after {
+  transition: background-color 0.3s ease, border-color 0.3s ease,
+    color 0.3s ease, box-shadow 0.3s ease;
+}

@@ -16,8 +16,20 @@ interface Props {
 
 export default function FileTreePanel({ files, selectedPath, onSelect }: Props) {
   return (
-    <div className="h-full overflow-auto bg-gray-50 border-r border-gray-200">
-      <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">
+    <div
+      className="h-full overflow-auto border-r"
+      style={{
+        background: 'var(--color-bg-layout)',
+        borderColor: 'var(--color-border)',
+      }}
+    >
+      <div
+        className="flex items-center border-b px-3 py-2 text-xs font-semibold uppercase tracking-wider"
+        style={{
+          color: 'var(--color-text-secondary)',
+          borderColor: 'var(--color-border)',
+        }}
+      >
         文件
       </div>
       <div className="py-1">
@@ -31,7 +43,7 @@ export default function FileTreePanel({ files, selectedPath, onSelect }: Props) 
           />
         ))}
         {files.length === 0 && (
-          <div className="px-3 py-4 text-sm text-gray-400 text-center">
+          <div className="px-3 py-4 text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
             暂无文件
           </div>
         )}
@@ -55,10 +67,20 @@ function FileTreeNode({ node, depth, selectedPath, onSelect }: {
   return (
     <div>
       <div
-        className={`flex items-center gap-1 px-2 py-1 text-sm cursor-pointer select-none
-          ${isSelected ? 'bg-blue-100 text-blue-800' : 'hover:bg-gray-100 text-gray-700'}
-        `}
-        style={{ paddingLeft: `${8 + depth * 16}px` }}
+        className="flex cursor-pointer select-none items-center gap-1 px-2 py-1 text-sm"
+        style={{
+          paddingLeft: `${8 + depth * 16}px`,
+          background: isSelected ? 'var(--sidebar-active-bg)' : 'transparent',
+          color: isSelected ? 'var(--color-primary)' : 'var(--sidebar-text)',
+        }}
+        onMouseEnter={(e) => {
+          if (!isSelected)
+            e.currentTarget.style.background = 'var(--sidebar-active-bg)';
+        }}
+        onMouseLeave={(e) => {
+          if (!isSelected)
+            e.currentTarget.style.background = 'transparent';
+        }}
         onClick={() => {
           if (isDir) {
             setExpanded(!expanded);
@@ -68,15 +90,19 @@ function FileTreeNode({ node, depth, selectedPath, onSelect }: {
         }}
       >
         {isDir ? (
-          <span className="text-gray-400 w-4 flex-shrink-0">
+          <span className="w-4 flex-shrink-0" style={{ color: 'var(--color-text-secondary)' }}>
             {expanded ? '▾' : '▸'}
           </span>
         ) : (
-          <span className="text-gray-400 w-4 flex-shrink-0">{getFileIcon(node.name)}</span>
+          <span className="w-4 flex-shrink-0" style={{ color: 'var(--color-text-secondary)' }}>{getFileIcon(node.name)}</span>
         )}
-        <span className="truncate flex-1">{node.name}</span>
+        <span className="flex-1 truncate">{node.name}</span>
         {node.modified && (
-          <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" title="已修改" />
+          <span
+            className="h-2 w-2 flex-shrink-0 rounded-full"
+            style={{ background: 'var(--color-warning)' }}
+            title="已修改"
+          />
         )}
       </div>
       {isDir && expanded && node.children?.map((child) => (
