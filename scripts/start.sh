@@ -17,6 +17,28 @@ info()  { echo -e "${BLUE}[INFO]${NC} $1"; }
 ok()    { echo -e "${GREEN}[OK]${NC} $1"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 
+# ── 停止已有服务 ────────────────────────────────────
+stop_service_on_port() {
+    local port=$1
+    local name=$2
+    local pids
+    pids=$(lsof -ti "tcp:$port" 2>/dev/null || true)
+    if [ -n "$pids" ]; then
+        warn "发现 ${name}(:${port}) 正在运行 (PID: $(echo "$pids" | tr '\n' ' '))，正在停止..."
+        kill $pids 2>/dev/null || true
+        sleep 1
+        pids=$(lsof -ti "tcp:$port" 2>/dev/null || true)
+        if [ -n "$pids" ]; then
+            kill -9 $pids 2>/dev/null || true
+            sleep 1
+        fi
+        ok "${name}(:${port}) 已停止"
+    fi
+}
+
+stop_service_on_port 8000  "后端"
+stop_service_on_port 5173  "前端"
+
 # ── 前置检查 ───────────────────────────────────────────
 if ! command -v uv &>/dev/null; then
 	echo "错误: 未找到 uv，请先安装: curl -LsSf https://astral.sh/uv/install.sh | sh"
