@@ -5,6 +5,7 @@ from app.models.user import User
 from app.schemas.chat import MessageResponse, SessionResponse
 from app.agent.graph import agent
 from app.agent.state import ChatState
+from app.services.event_bus import get_event_bus
 
 # 每个 session 对应一个 Agent 内存状态
 agent_states: dict[str, ChatState] = {}
@@ -140,5 +141,8 @@ class ChatService:
         result["phase"] = new_phase
         result["req_summary"] = new_summary
         agent_states[session_id] = result
+
+        # Notify SSE connections that new messages are available
+        get_event_bus().notify(session_id)
 
         return ChatService.get_messages(session_id, db)

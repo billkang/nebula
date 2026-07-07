@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from app.config import settings
 from app.database import engine, Base
 from app.api.router import api_router
+from app.services.event_bus import init_event_bus
 import os
 
 
@@ -14,6 +15,8 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     # 确保 projects/ 目录存在
     os.makedirs(os.path.join(os.path.dirname(__file__), "..", "..", "projects"), exist_ok=True)
+    # 初始化 EventBus 单例（需在事件循环已运行后）
+    init_event_bus()
     yield
 
 
