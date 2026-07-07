@@ -27,18 +27,57 @@ export default function Docs() {
   });
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="border-b bg-white px-6 py-3">
-        <Link to={`/projects/${id}`} className="text-gray-400 hover:text-gray-600 mr-3">← 返回对话</Link>
-        <span className="font-semibold">设计文档</span>
+    <div className="flex h-full flex-col">
+      <div
+        className="flex items-center border-b px-6 py-3"
+        style={{
+          borderColor: 'var(--color-border)',
+          background: 'var(--color-bg-container)',
+        }}
+      >
+        <Link
+          to={`/projects/${id}`}
+          className="mr-3 text-sm transition-colors duration-150"
+          style={{ color: 'var(--color-text-secondary)' }}
+        >
+          ← 返回对话
+        </Link>
+        <span className="text-base font-semibold" style={{ color: 'var(--color-text-base)' }}>
+          设计文档
+        </span>
       </div>
       <div className="flex flex-1">
-        <div className="w-48 border-r bg-gray-50 p-4">
+        <div
+          className="w-48 border-r p-4"
+          style={{
+            borderColor: 'var(--color-border)',
+            background: 'var(--color-bg-layout)',
+          }}
+        >
           {docs?.map((d) => (
-            <button key={d.type} onClick={() => setSelected(d.type)}
-              className={`block w-full text-left px-3 py-2 rounded-md text-sm mb-1 ${
-                selected === d.type ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-200'
-              }`}>
+            <button
+              key={d.type}
+              onClick={() => setSelected(d.type)}
+              className="mb-1 block w-full rounded-lg px-3 py-2 text-left text-sm transition-all duration-150"
+              style={{
+                background:
+                  selected === d.type
+                    ? 'var(--sidebar-active-bg)'
+                    : 'transparent',
+                color:
+                  selected === d.type
+                    ? 'var(--color-primary)'
+                    : 'var(--sidebar-text)',
+              }}
+              onMouseEnter={(e) => {
+                if (selected !== d.type)
+                  e.currentTarget.style.background = 'var(--sidebar-active-bg)';
+              }}
+              onMouseLeave={(e) => {
+                if (selected !== d.type)
+                  e.currentTarget.style.background = 'transparent';
+              }}
+            >
               {d.type === 'proposal' && '📋 Proposal'}
               {d.type === 'specs' && '📐 Specs'}
               {d.type === 'design' && '🏗️ Design'}
@@ -47,8 +86,12 @@ export default function Docs() {
             </button>
           ))}
         </div>
-        <div className="flex-1 overflow-auto p-6">
-          {content ? <DocViewer content={content.content} /> : <p className="text-gray-400">选择左侧文档查看</p>}
+        <div className="flex-1 overflow-auto p-6" style={{ color: 'var(--color-text-secondary)' }}>
+          {content ? (
+            <DocViewer content={content.content} />
+          ) : (
+            <p className="text-sm">选择左侧文档查看</p>
+          )}
         </div>
       </div>
     </div>

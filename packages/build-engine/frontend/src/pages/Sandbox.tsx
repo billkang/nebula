@@ -272,27 +272,47 @@ export default function SandboxPage() {
 
       {/* Rebuild result banner */}
       {buildResult && buildStatus !== 'idle' && (
-        <div className={`px-4 py-2 text-sm flex items-center justify-between ${
-          buildStatus === 'success' ? 'bg-green-50 border-b border-green-200' :
-          buildStatus === 'failed' ? 'bg-red-50 border-b border-red-200' :
-          buildStatus === 'cancelled' ? 'bg-gray-50 border-b border-gray-200' :
-          'bg-amber-50 border-b border-amber-200'
-        }`}>
+        <div
+          className="flex items-center justify-between border-b px-4 py-2 text-sm"
+          style={{
+            background:
+              buildStatus === 'success'
+                ? 'rgba(34, 197, 94, 0.08)'
+                : buildStatus === 'failed'
+                  ? 'rgba(239, 68, 68, 0.08)'
+                  : buildStatus === 'cancelled'
+                    ? 'var(--color-bg-layout)'
+                    : 'rgba(245, 158, 11, 0.08)',
+            borderColor:
+              buildStatus === 'success'
+                ? 'rgba(34, 197, 94, 0.2)'
+                : buildStatus === 'failed'
+                  ? 'rgba(239, 68, 68, 0.2)'
+                  : buildStatus === 'cancelled'
+                    ? 'var(--color-border)'
+                    : 'rgba(245, 158, 11, 0.2)',
+          }}
+        >
           <div className="flex items-center gap-2">
             {buildStatus === 'success' ? (
               <>
                 <span>✅ 重建成功</span>
-                <span className="text-gray-500">
+                <span style={{ color: 'var(--color-text-secondary)' }}>
                   — Artifact {buildResult.artifact_version || ''} 已创建
                 </span>
                 {buildResult.preview_url && (
-                  <a href={buildResult.preview_url} target="_blank" rel="noopener noreferrer"
-                    className="ml-2 px-2 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">
+                  <a
+                    href={buildResult.preview_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-2 rounded px-2 py-0.5 text-xs text-white"
+                    style={{ background: 'var(--color-primary)' }}
+                  >
                     🚀 在 Runtime 中预览
                   </a>
                 )}
                 {buildResult.snapshot_id && (
-                  <span className="text-xs text-gray-400 ml-2">
+                  <span className="ml-2 text-xs" style={{ color: 'var(--color-text-secondary)' }}>
                     快照: {buildResult.snapshot_id}
                   </span>
                 )}
@@ -300,26 +320,35 @@ export default function SandboxPage() {
             ) : buildStatus === 'failed' ? (
               <>
                 <span>❌ 重建失败</span>
-                <span className="text-gray-500 ml-1">
+                <span className="ml-1" style={{ color: 'var(--color-text-secondary)' }}>
                   {buildResult?.message || buildResult?.error || ''}
                 </span>
               </>
             ) : buildStatus === 'cancelled' ? (
               <>
                 <span>⏹️ 构建已取消</span>
-                <span className="text-gray-500 ml-1">
+                <span className="ml-1" style={{ color: 'var(--color-text-secondary)' }}>
                   未生成新的 Artifact
                 </span>
               </>
             ) : (
               <>
-                <span className="inline-block w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-                <span>重建中...</span>
+                <span
+                  className="inline-block h-3 w-3 animate-spin rounded-full border-2"
+                  style={{
+                    borderColor: 'var(--color-warning)',
+                    borderTopColor: 'transparent',
+                  }}
+                />
+                <span>重建中…</span>
               </>
             )}
           </div>
-          <button onClick={() => { setBuildStatus('idle'); setBuildResult(null); }}
-            className="text-gray-400 hover:text-gray-600 text-xs">
+          <button
+            onClick={() => { setBuildStatus('idle'); setBuildResult(null); }}
+            className="text-xs transition-colors duration-150"
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
             ✕
           </button>
         </div>
@@ -327,7 +356,14 @@ export default function SandboxPage() {
 
       {/* Runtime unavailable warning */}
       {buildResult?.runtime_status === 'runtime_unavailable' && (
-        <div className="px-4 py-1.5 text-xs text-amber-600 bg-amber-50 border-b border-amber-200">
+        <div
+          className="border-b px-4 py-1.5 text-xs"
+          style={{
+            color: 'var(--color-warning)',
+            background: 'rgba(245, 158, 11, 0.08)',
+            borderColor: 'rgba(245, 158, 11, 0.2)',
+          }}
+        >
           ⚠️ Runtime 未运行 — Artifact 已保存到本地
         </div>
       )}
@@ -335,18 +371,19 @@ export default function SandboxPage() {
       {/* Main content area */}
       <div className="flex-1 flex overflow-hidden">
         {/* File tree panel */}
-        <div className="w-56 flex-shrink-0">
+        <div className="w-56 flex-shrink-0" style={{ background: 'var(--color-bg-container)' }}>
           {filesLoading ? (
-            <div className="h-full flex items-center justify-center bg-gray-50">
-              <div className="text-sm text-gray-400">加载中...</div>
+            <div className="flex h-full items-center justify-center" style={{ color: 'var(--color-text-secondary)' }}>
+              <div className="text-sm">加载中…</div>
             </div>
           ) : !sandboxMeta?.initialized ? (
-            <div className="h-full flex items-center justify-center bg-gray-50">
-              <div className="text-center px-3">
-                <div className="text-lg mb-2">📁</div>
+            <div className="flex h-full items-center justify-center" style={{ color: 'var(--color-text-secondary)' }}>
+              <div className="px-3 text-center">
+                <div className="mb-2 text-lg">📁</div>
                 <button
                   onClick={() => initMut.mutate()}
-                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  style={{ color: 'var(--color-primary)' }}
+                  className="text-xs underline"
                 >
                   初始化沙箱
                 </button>
@@ -369,11 +406,27 @@ export default function SandboxPage() {
         ) : selectedPath ? (
           <div className="flex-1 flex flex-col">
             {/* 文件标签栏 */}
-            <div className="flex items-center border-b border-gray-200 bg-gray-50 px-2">
-              <div className="flex items-center gap-1 px-3 py-1.5 bg-white border-t border-l border-r border-gray-200 rounded-t text-sm">
+            <div
+              className="flex items-center border-b px-2"
+              style={{
+                borderColor: 'var(--color-border)',
+                background: 'var(--color-bg-layout)',
+              }}
+            >
+              <div
+                className="flex items-center gap-1 rounded-t border border-b-0 px-3 py-1.5 text-sm"
+                style={{
+                  background: 'var(--color-bg-container)',
+                  borderColor: 'var(--color-border)',
+                  color: 'var(--color-text-base)',
+                }}
+              >
                 <span className="text-xs">{currentFileName}</span>
                 {unsavedContent.current.has(selectedPath) && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  <span
+                    className="inline-block h-1.5 w-1.5 rounded-full"
+                    style={{ background: 'var(--color-warning)' }}
+                  />
                 )}
               </div>
             </div>
@@ -387,11 +440,14 @@ export default function SandboxPage() {
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center bg-gray-50">
-            <div className="text-center text-gray-400">
-              <div className="text-3xl mb-3">📝</div>
+          <div
+            className="flex flex-1 items-center justify-center"
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
+            <div className="text-center">
+              <div className="mb-3 text-3xl">📝</div>
               <p className="text-sm">从左侧文件树选择一个文件开始编辑</p>
-              <p className="text-xs mt-1">修改后保存，点击"重新构建"生成新 Artifact</p>
+              <p className="mt-1 text-xs">修改后保存，点击"重新构建"生成新 Artifact</p>
             </div>
           </div>
         )}

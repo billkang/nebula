@@ -15,17 +15,23 @@ interface Props {
 export default function SandboxDiffView({ diff, loading }: Props) {
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-50">
-        <div className="text-sm text-gray-400">加载 diff 中...</div>
+      <div
+        className="flex h-full items-center justify-center"
+        style={{ background: 'var(--color-bg-layout)' }}
+      >
+        <div className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>加载 diff 中...</div>
       </div>
     );
   }
 
   if (!diff) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-50">
-        <div className="text-center text-sm text-gray-400">
-          <div className="text-2xl mb-2">📊</div>
+      <div
+        className="flex h-full items-center justify-center"
+        style={{ background: 'var(--color-bg-layout)' }}
+      >
+        <div className="text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+          <div className="mb-2 text-2xl">📊</div>
           <p>选择一个已修改的文件查看 diff</p>
         </div>
       </div>
@@ -34,11 +40,14 @@ export default function SandboxDiffView({ diff, loading }: Props) {
 
   if (!diff.has_diff) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-50">
-        <div className="text-center text-sm text-green-600">
-          <div className="text-2xl mb-2">✅</div>
+      <div
+        className="flex h-full items-center justify-center"
+        style={{ background: 'var(--color-bg-layout)' }}
+      >
+        <div className="text-center text-sm" style={{ color: 'var(--color-success)' }}>
+          <div className="mb-2 text-2xl">✅</div>
           <p>{diff.path}</p>
-          <p className="text-gray-500">此文件无修改</p>
+          <p style={{ color: 'var(--color-text-secondary)' }}>此文件无修改</p>
         </div>
       </div>
     );
@@ -48,14 +57,20 @@ export default function SandboxDiffView({ diff, loading }: Props) {
   const lines = diff.diff.split('\n');
 
   return (
-    <div className="h-full overflow-auto bg-white">
+    <div className="h-full overflow-auto" style={{ background: 'var(--color-bg-container)' }}>
       {/* header */}
-      <div className="px-4 py-2 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-        <div className="text-sm font-medium text-gray-700 truncate">{diff.path}</div>
-        <div className="text-xs text-gray-500">
-          <span className="text-green-600">+{diff.additions}</span>
+      <div
+        className="flex items-center justify-between border-b px-4 py-2"
+        style={{
+          borderColor: 'var(--color-border)',
+          background: 'var(--color-bg-layout)',
+        }}
+      >
+        <div className="truncate text-sm font-medium" style={{ color: 'var(--color-text-base)' }}>{diff.path}</div>
+        <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+          <span style={{ color: 'var(--color-success)' }}>+{diff.additions}</span>
           {' / '}
-          <span className="text-red-600">-{diff.removals}</span>
+          <span style={{ color: 'var(--color-error)' }}>-{diff.removals}</span>
           {' 行变更'}
         </div>
       </div>
@@ -65,30 +80,51 @@ export default function SandboxDiffView({ diff, loading }: Props) {
         {lines.map((line, i) => {
           if (line.startsWith('---') || line.startsWith('+++') || line.startsWith('@@')) {
             return (
-              <div key={i} className="px-4 py-0.5 bg-blue-50 text-blue-600">
+              <div
+                key={i}
+                className="px-4 py-0.5"
+                style={{
+                  background: 'rgba(74, 158, 255, 0.06)',
+                  color: 'var(--color-primary)',
+                }}
+              >
                 {line}
               </div>
             );
           }
           if (line.startsWith('+')) {
             return (
-              <div key={i} className="px-4 py-0.5 bg-green-50 text-green-800">
-                <span className="text-green-500 select-none mr-1">+</span>
+              <div
+                key={i}
+                className="px-4 py-0.5"
+                style={{
+                  background: 'rgba(34, 197, 94, 0.06)',
+                  color: 'var(--color-success)',
+                }}
+              >
+                <span className="mr-1 select-none" style={{ color: 'var(--color-success)' }}>+</span>
                 {line.slice(1)}
               </div>
             );
           }
           if (line.startsWith('-')) {
             return (
-              <div key={i} className="px-4 py-0.5 bg-red-50 text-red-800">
-                <span className="text-red-500 select-none mr-1">-</span>
+              <div
+                key={i}
+                className="px-4 py-0.5"
+                style={{
+                  background: 'rgba(239, 68, 68, 0.06)',
+                  color: 'var(--color-error)',
+                }}
+              >
+                <span className="mr-1 select-none" style={{ color: 'var(--color-error)' }}>-</span>
                 {line.slice(1)}
               </div>
             );
           }
           return (
-            <div key={i} className="px-4 py-0.5 text-gray-600">
-              <span className="text-gray-300 select-none mr-1"> </span>
+            <div key={i} className="px-4 py-0.5" style={{ color: 'var(--color-text-secondary)' }}>
+              <span className="mr-1 select-none" style={{ color: 'var(--color-border)' }}> </span>
               {line}
             </div>
           );

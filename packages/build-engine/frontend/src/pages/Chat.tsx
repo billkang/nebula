@@ -90,99 +90,196 @@ export default function Chat() {
   useEffect(() => { msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="border-b bg-white px-6 py-3 flex items-center justify-between">
+    <div className="flex h-full flex-col" style={{ background: 'var(--color-bg-layout)' }}>
+      {/* Top bar */}
+      <div
+        className="flex items-center justify-between border-b px-6 py-3"
+        style={{
+          background: 'var(--color-bg-container)',
+          borderColor: 'var(--color-border)',
+        }}
+      >
         <div className="flex items-center gap-3">
-          <Link to="/projects" className="text-gray-400 hover:text-gray-600">← 返回</Link>
-          <span className={`inline-block w-2 h-2 rounded-full ${sseConnected ? 'bg-green-500' : 'bg-red-400'}`}
-                title={sseConnected ? '已连接' : '连接断开'} />
-          <h2 className="font-semibold">需求对话</h2>
+          <Link
+            to="/projects"
+            style={{ color: 'var(--color-text-secondary)' }}
+            className="text-sm transition-colors duration-150 hover:opacity-80"
+          >
+            ← 返回
+          </Link>
+          <span
+            className={`inline-block h-2 w-2 rounded-full ${
+              sseConnected ? 'animate-pulse' : ''
+            }`}
+            style={{
+              background: sseConnected ? 'var(--color-success)' : 'var(--color-error)',
+            }}
+            title={sseConnected ? '已连接' : '连接断开'}
+          />
+          <h2 className="text-base font-semibold" style={{ color: 'var(--color-text-base)' }}>
+            需求对话
+          </h2>
         </div>
         {messages?.some((m) => m.phase === 'generating') && (
           <div className="flex gap-2">
-            <Link to={`/projects/${id}/docs`}
-              className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200">
+            <Link
+              to={`/projects/${id}/docs`}
+              className="rounded-lg px-3 py-1.5 text-sm transition-all duration-150"
+              style={{
+                background: 'var(--color-primary-bg)',
+                color: 'var(--color-primary)',
+              }}
+            >
               查看文档
             </Link>
-            <button onClick={handleExecute}
-              className="px-3 py-1 text-sm bg-green-600 text-white rounded-md hover:bg-green-700">
+            <button
+              onClick={handleExecute}
+              className="rounded-lg px-3 py-1.5 text-sm text-white transition-all duration-150 hover:scale-[1.02]"
+              style={{ background: 'var(--color-primary)' }}
+            >
               ⚡ 开始编码
             </button>
           </div>
         )}
       </div>
-      <div className="flex-1 overflow-auto p-6 bg-gray-50">
+
+      {/* Messages area */}
+      <div className="flex-1 overflow-auto p-6">
         {messages?.map((m) => (
-          <MessageBubble key={m.id} role={m.role as 'user' | 'agent'} content={m.content} phase={m.phase} />
+          <MessageBubble
+            key={m.id}
+            role={m.role as 'user' | 'agent'}
+            content={m.content}
+            phase={m.phase}
+          />
         ))}
+
+        {/* Typing indicator */}
         {sendMut.isPending && (
-          <div className="flex justify-start mb-4">
-            <div className="bg-white border border-gray-200 rounded-lg p-4 max-w-[70%]">
+          <div className="mb-4 flex justify-start">
+            <div
+              className="max-w-[70%] rounded-xl p-4"
+              style={{
+                background: 'var(--color-bg-container)',
+                border: '1px solid var(--color-border)',
+              }}
+            >
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                <span className="text-sm text-gray-500 ml-1">Agent 正在思考…</span>
+                <span
+                  className="inline-block h-2 w-2 animate-bounce rounded-full"
+                  style={{ background: 'var(--color-text-secondary)', animationDelay: '0ms' }}
+                />
+                <span
+                  className="inline-block h-2 w-2 animate-bounce rounded-full"
+                  style={{ background: 'var(--color-text-secondary)', animationDelay: '150ms' }}
+                />
+                <span
+                  className="inline-block h-2 w-2 animate-bounce rounded-full"
+                  style={{ background: 'var(--color-text-secondary)', animationDelay: '300ms' }}
+                />
+                <span className="ml-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                  Agent 正在思考…
+                </span>
               </div>
             </div>
           </div>
         )}
-        {showConfirm && <ConfirmCard summary={reqSummary} onConfirm={handleConfirm} onRevise={handleRevise} />}
+
+        {showConfirm && (
+          <ConfirmCard summary={reqSummary} onConfirm={handleConfirm} onRevise={handleRevise} />
+        )}
+
+        {/* Exec status */}
         {execStatus !== 'idle' && (
-          <div className="bg-white border rounded-lg p-4 mb-4">
+          <div
+            className="mb-4 rounded-xl p-4"
+            style={{
+              background: 'var(--color-bg-container)',
+              border: '1px solid var(--color-border)',
+            }}
+          >
             <div className="flex items-center gap-2">
               <span className="text-sm">🔧 编码执行</span>
               <StatusBadge status={execStatus} />
             </div>
             {execStatus === 'success' && (
               <div className="mt-2">
-                <button onClick={handleBuild}
-                  className="px-3 py-1 text-sm bg-purple-600 text-white rounded-md">
+                <button
+                  onClick={handleBuild}
+                  className="rounded-lg px-3 py-1.5 text-sm text-white"
+                  style={{ background: 'var(--color-primary)' }}
+                >
                   📦 开始构建
                 </button>
               </div>
             )}
           </div>
         )}
+
+        {/* Build status */}
         {buildStatus !== 'idle' && (
-          <div className="bg-white border rounded-lg p-4 mb-4">
+          <div
+            className="mb-4 rounded-xl p-4"
+            style={{
+              background: 'var(--color-bg-container)',
+              border: '1px solid var(--color-border)',
+            }}
+          >
             <div className="flex items-center gap-2">
               <span className="text-sm">📦 构建验证</span>
               <StatusBadge status={buildStatus} />
             </div>
-            {buildStatus === 'success' && <p className="text-sm text-green-600 mt-2">✅ 构建完成</p>}
+            {buildStatus === 'success' && (
+              <p className="mt-2 text-sm" style={{ color: 'var(--color-success)' }}>
+                ✅ 构建完成
+              </p>
+            )}
             {previewUrl && (
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
                 <a
                   href={previewUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  className="rounded-lg px-3 py-1.5 text-sm text-white transition-all duration-150 hover:scale-[1.02]"
+                  style={{ background: 'var(--color-primary)' }}
                 >
                   🚀 在 Runtime 中预览
                 </a>
                 <Link
                   to={`/projects/${id}/sandbox`}
-                  className="px-3 py-1 text-sm bg-amber-500 text-white rounded-md hover:bg-amber-600"
+                  className="rounded-lg px-3 py-1.5 text-sm text-white transition-all duration-150 hover:scale-[1.02]"
+                  style={{ background: 'var(--color-warning)' }}
                 >
                   ✏️ 在沙箱中编辑
                 </Link>
                 <Link
                   to={`/projects/${id}/docs`}
-                  className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                  className="rounded-lg px-3 py-1.5 text-sm transition-all duration-150"
+                  style={{
+                    background: 'var(--color-bg-layout)',
+                    color: 'var(--color-text-secondary)',
+                    border: '1px solid var(--color-border)',
+                  }}
                 >
                   查看文档
                 </Link>
               </div>
             )}
             {runtimeStatus === 'runtime_unavailable' && (
-              <p className="text-xs text-amber-600 mt-1">Runtime 未运行，可稍后手动部署</p>
+              <p className="mt-1 text-xs" style={{ color: 'var(--color-warning)' }}>
+                Runtime 未运行，可稍后手动部署
+              </p>
             )}
           </div>
         )}
+
         <div ref={msgEndRef} />
       </div>
-      <MessageInput onSend={(c) => sendMut.mutate(c)} disabled={showConfirm || execStatus !== 'idle'} />
+
+      <MessageInput
+        onSend={(c) => sendMut.mutate(c)}
+        disabled={showConfirm || execStatus !== 'idle'}
+      />
     </div>
   );
 }
