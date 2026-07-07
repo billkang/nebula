@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import MessageBubble from '../components/MessageBubble';
 import MessageInput from '../components/MessageInput';
@@ -9,7 +9,6 @@ import StatusBadge from '../components/StatusBadge';
 
 export default function Chat() {
   const { id } = useParams<{ id: string }>();
-  const qc = useQueryClient();
   const msgEndRef = useRef<HTMLDivElement>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -18,20 +17,39 @@ export default function Chat() {
   const [buildStatus, setBuildStatus] = useState('idle');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [runtimeStatus, setRuntimeStatus] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Array<{ id: string; role: string; content: string; phase?: string; created_at: string }>>([]);
+  const [sseConnected, setSseConnected] = useState(false);
+  const currentToken = localStorage.getItem('nebula_token');
 
   useEffect(() => {
     if (id) api.sessions.create(id).then((s) => setSessionId(s.id));
   }, [id]);
 
-  const { data: messages } = useQuery({
-    queryKey: ['messages', sessionId],
-    queryFn: () => {
-      if (!id || !sessionId) return Promise.resolve([]);
-      return api.sessions.messages(id, sessionId);
-    },
-    enabled: !!sessionId,
-    refetchInterval: 2000,
-  });
+  useEffect(() => {
+    if (!id || !sessionId || !currentToken) return;
+
+    const es = new EventSource(`/api/v1/projects/${id}/sessions/${sessionId}/messages/stream?token=${currentToken}`);
+
+    es.onopen = () => setSseConnected(true);
+
+    es.onmessage = (e) => {
+      try {
+        const msgs = JSON.parse(e.data);
+        setMessages(msgs);
+      } catch { /* ignore parse errors on heartbeat/comment lines */ }
+    };
+
+    es.addEventListener('error', () => {
+      if (es.readyState === EventSource.CLOSED) {
+        setSseConnected(false);
+      }
+    });
+
+    return () => {
+      es.close();
+      setSseConnected(false);
+    };
+  }, [id, sessionId, currentToken]);
 
   const sendMut = useMutation({
     mutationFn: (c: string) => {
@@ -39,7 +57,6 @@ export default function Chat() {
       return api.sessions.send(id, sessionId, c);
     },
     onSuccess: (msgs) => {
-      qc.invalidateQueries({ queryKey: ['messages', sessionId] });
       const last = msgs[msgs.length - 1];
       if (last?.phase === 'confirming') { setShowConfirm(true); setReqSummary(last.content); }
       if (last?.phase === 'generating') setShowConfirm(false);
@@ -77,6 +94,8 @@ export default function Chat() {
       <div className="border-b bg-white px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link to="/projects" className="text-gray-400 hover:text-gray-600">← 返回</Link>
+          <span className={`inline-block w-2 h-2 rounded-full ${sseConnected ? 'bg-green-500' : 'bg-red-400'}`}
+                title={sseConnected ? '已连接' : '连接断开'} />
           <h2 className="font-semibold">需求对话</h2>
         </div>
         {messages?.some((m) => m.phase === 'generating') && (
