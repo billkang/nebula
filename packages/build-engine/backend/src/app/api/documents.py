@@ -11,22 +11,22 @@ doc_router = APIRouter(prefix="/projects/{project_id}/docs", tags=["documents"])
 
 
 @doc_router.get("")
-def list_docs(project_id: str, db: Session = Depends(get_db),
+def list_docs(project_id: int, db: Session = Depends(get_db),
               user: User = Depends(get_current_user)):
-    return DocService.list_docs()
+    return DocService.list_docs(project_id, db)
 
 
 @doc_router.get("/{doc_type}")
-def get_doc(project_id: str, doc_type: str, db: Session = Depends(get_db),
+def get_doc(project_id: int, doc_type: str, db: Session = Depends(get_db),
             user: User = Depends(get_current_user)):
-    content = DocService.get_doc(doc_type)
+    content = DocService.get_doc(project_id, doc_type, db)
     if content is None:
         raise HTTPException(status_code=404, detail="文档不存在")
     return {"type": doc_type, "content": content}
 
 
 @doc_router.post("/generate")
-def generate_docs(project_id: str, db: Session = Depends(get_db),
+def generate_docs(project_id: int, db: Session = Depends(get_db),
                   user: User = Depends(get_current_user)):
     # 从项目最新 session 的 agent state 中提取上下文
     req_summary = None
@@ -39,4 +39,9 @@ def generate_docs(project_id: str, db: Session = Depends(get_db),
         req_summary = state.get("req_summary")
         out_of_scope = state.get("out_of_scope")
 
-    return DocService.generate_docs(req_summary=req_summary, out_of_scope=out_of_scope)
+    return DocService.generate_docs(
+        project_id=project_id,
+        db=db,
+        req_summary=req_summary,
+        out_of_scope=out_of_scope,
+    )

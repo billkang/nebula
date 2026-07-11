@@ -21,13 +21,13 @@ def create_project(req: ProjectCreate, db: Session = Depends(get_db),
 
 
 @projects_router.get("/{project_id}", response_model=ProjectResponse)
-def get_project(project_id: str, db: Session = Depends(get_db),
+def get_project(project_id: int, db: Session = Depends(get_db),
                 user: User = Depends(get_current_user)):
     return ProjectService.get_project(project_id, db, user)
 
 
 @projects_router.delete("/{project_id}")
-def delete_project(project_id: str, db: Session = Depends(get_db),
+def delete_project(project_id: int, db: Session = Depends(get_db),
                    user: User = Depends(require_admin)):
     ProjectService.delete_project(project_id, db)
     return {"message": "项目已删除"}

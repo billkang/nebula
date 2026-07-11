@@ -61,6 +61,7 @@ deepstorm:
 | `quick-reference.md` | **编码规范速查**。包含核心规则和约定 |
 | `{value}.md` | **维度规范**（如 `spring-boot.md`、`hibernate.md`）。按上方链接加载 |
 | `api-spec.md` | **API 规范**。RESTful 命名、统一响应体、版本策略、OpenAPI |
+| `jackson-polymorphism.md` | **DTO 多态序列化规范**。Jackson `@JsonTypeInfo` + TS Discriminated Union |
 | `dependency-management.md` | **依赖管理规范**。Version Catalog、版本一致性、CVE |
 | `exception-handling.md` | **异常处理深度规范**。异常层次、错误码、全局处理 |
 | `security-redlines.md` | **安全红线**。P0/P1 安全规则及代码示例 |

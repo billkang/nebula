@@ -7,8 +7,9 @@ class ProjectCreate(BaseModel):
 
 
 class ProjectResponse(BaseModel):
-    id: str
+    id: int
     name: str
     description: str
+    change_name: str | None = None
     created_at: str
     updated_at: str
