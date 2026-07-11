@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -21,7 +22,13 @@ class Settings(BaseSettings):
     builder_cpu_limit: int = 1
     builder_memory_limit: str = "512m"
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    # LLM Provider config
+    llm_provider: str = "deepseek"          # deepseek | openai | custom
+    llm_model: str = "deepseek-chat"        # model name
+    llm_api_key: str = Field(default="", validation_alias="DEEPSEEK_API_KEY")
+    llm_base_url: str = "https://api.deepseek.com"  # API base URL
+
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "populate_by_name": True}
 
 
 settings = Settings()

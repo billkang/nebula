@@ -17,7 +17,7 @@ def _setup_project_with_artifact(client: TestClient, headers: dict, project_name
     pid = resp.json()["id"]
 
     # 手动创建项目文件结构（模拟构建完成的状态）
-    project_dir = BASE_DIR / "projects" / pid
+    project_dir = BASE_DIR / "projects" / str(pid)
     (project_dir / "src").mkdir(parents=True, exist_ok=True)
     (project_dir / "src" / "main.py").write_text(
         "print('hello from sandbox test')\n", encoding="utf-8"
@@ -61,7 +61,7 @@ def _setup_project_with_artifact(client: TestClient, headers: dict, project_name
         tar.add(project_dir / "Dockerfile", arcname="Dockerfile")
         tar.add(artifact_dir / "manifest.json", arcname="manifest.json")
 
-    _build_states[pid] = {
+    _build_states[str(pid)] = {
         "status": "success",
         "message": f"构建完成，Artifact: {tar_path}",
         "artifact_version": artifact_version,

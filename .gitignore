@@ -35,7 +35,10 @@ htmlcov/
 .env
 
 # Build outputs
-projects/
+packages/build-engine/backend/projects/
+
+# Backend openspec workspace (user project dirs, not 星云 platform SDD)
+packages/build-engine/backend/openspec/
 
 # Dev script state markers
 .alembic_done
