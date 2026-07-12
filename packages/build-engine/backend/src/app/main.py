@@ -8,6 +8,7 @@ from app.database import engine, Base
 from app.api.router import api_router
 from app.services.event_bus import init_event_bus
 from app.core.logging import setup_logging
+from app.middleware.logging import RequestLogMiddleware
 import os
 import logging
 
@@ -39,6 +40,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(RequestLogMiddleware)
 
 
 @app.exception_handler(RequestValidationError)
