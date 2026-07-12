@@ -1,11 +1,15 @@
 import subprocess
 import os
 import shutil
+import logging
 from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.models.project import Project
 from app.models.user import User
+from app.core.logging import biz_stage_start, biz_stage_end, biz_step
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -20,7 +24,7 @@ class DocService:
     """
 
     @staticmethod
-    def _get_project_info(project_id: int, db: Session) -> tuple[str, str]:
+    def _get_project_info(project_id: str, db: Session) -> tuple[str, str]:
         """查询 project_id 对应的 username 和 change_name。"""
         project = db.query(Project).filter(Project.id == project_id).first()
         if not project or not project.change_name:
@@ -31,13 +35,13 @@ class DocService:
         return user.username, project.change_name
 
     @staticmethod
-    def get_project_dir(project_id: int, db: Session) -> str:
+    def get_project_dir(project_id: str, db: Session) -> str:
         """返回项目目录路径 projects/{username}-{change_name}/。"""
         username, change_name = DocService._get_project_info(project_id, db)
         return str(BASE_DIR / "projects" / f"{username}-{change_name}")
 
     @staticmethod
-    def list_docs(project_id: int, db: Session) -> list[dict]:
+    def list_docs(project_id: str, db: Session) -> list[dict]:
         """列出项目 openspec 工作区中的所有 change 及其 artifact 状态。"""
         project_dir = Path(DocService.get_project_dir(project_id, db))
         changes_dir = project_dir / "openspec" / "changes"
@@ -58,7 +62,7 @@ class DocService:
         return result
 
     @staticmethod
-    def generate_docs(project_id: int, db: Session,
+    def generate_docs(project_id: str, db: Session,
                       req_summary: str | None = None,
                       out_of_scope: list[str] | None = None) -> dict:
         """生成 SDD 文档到项目 openspec 工作区。
@@ -68,9 +72,11 @@ class DocService:
           2. 创建/使用 openspec change
           3. 运行 openspec instructions 生成各 artifact
         """
+        biz_stage_start("SPEC_GEN", project_id=project_id)
         username, change_name = DocService._get_project_info(project_id, db)
         project_dir = Path(DocService.get_project_dir(project_id, db))
         change_name_full = f"{username}-{change_name}-init"
+        biz_step("SPEC_GEN", "resolve-project", project_dir=str(project_dir))
 
         # 1. 写入对话上下文到项目根目录
         context_path = project_dir / "conversation_context.md"
@@ -80,6 +86,7 @@ class DocService:
             if out_of_scope:
                 items = "\n".join(f"- {item}" for item in out_of_scope)
                 f.write(f"## Out of Scope\n\n{items}\n\n")
+        biz_step("SPEC_GEN", "write-context")
 
         # 2. 确保 change 存在
         changes_dir = project_dir / "openspec" / "changes"
@@ -91,23 +98,29 @@ class DocService:
             )
             if result.returncode != 0:
                 stderr = result.stderr.strip()
+                biz_stage_end("SPEC_GEN", status="failed", reason="create_change_failed")
                 return {"success": False,
                         "message": f"创建 openspec change 失败: {stderr}"}
+        biz_step("SPEC_GEN", "create-change", name=change_name_full)
 
         # 3. 为每个 artifact 运行 openspec instructions
         for cmd in ["proposal", "specs", "design", "tasks"]:
+            biz_step("SPEC_GEN", cmd)
             result = subprocess.run(
                 ["openspec", "instructions", cmd, "--change", change_name_full, "--json"],
                 capture_output=True, text=True, cwd=str(project_dir),
             )
             if result.returncode != 0:
+                biz_stage_end("SPEC_GEN", status="failed", reason=f"{cmd}_failed",
+                              error=result.stderr.strip()[:200])
                 return {"success": False,
                         "message": f"{cmd} 生成失败: {result.stderr.strip()}"}
 
+        biz_stage_end("SPEC_GEN", status="ok", project_id=project_id)
         return {"success": True, "message": "文档生成完成"}
 
     @staticmethod
-    def get_doc(project_id: int, doc_type: str, db: Session) -> str | None:
+    def get_doc(project_id: str, doc_type: str, db: Session) -> str | None:
         """从项目 openspec 工作区读取指定类型的 SDD 文档内容。"""
         project_dir = Path(DocService.get_project_dir(project_id, db))
         # 找到最新的 change

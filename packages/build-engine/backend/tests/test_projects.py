@@ -162,15 +162,15 @@ def test_delete_project_missing_directory_succeeds(client, db):
     assert resp.status_code == 200
 
 
-def test_project_id_is_integer(client, db):
-    """创建项目后返回的 id 应为 int。"""
+def test_project_id_is_string(client, db):
+    """创建项目后返回的 id 应为 str (UUID)。"""
     from app.models.user import User, UserRole
     from app.services.auth_service import hash_password
-    user = User(username="id_int_user", email="idint@test.com",
+    user = User(username="id_str_user", email="idstr@test.com",
                 password=hash_password("pass123"), role=UserRole.ADMIN)
     db.add(user)
     db.commit()
-    resp = client.post("/api/v1/auth/login", json={"username": "id_int_user", "password": "pass123"})
+    resp = client.post("/api/v1/auth/login", json={"username": "id_str_user", "password": "pass123"})
     token = resp.json()["access_token"]
 
     from unittest.mock import patch
@@ -179,7 +179,81 @@ def test_project_id_is_integer(client, db):
                            headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
     data = resp.json()
-    assert isinstance(data["id"], int), f"Expected int id, got {type(data['id'])}: {data['id']}"
+    assert isinstance(data["id"], str), f"Expected str id, got {type(data['id'])}: {data['id']}"
+    assert len(data["id"]) > 0
+
+
+# ===== 获取单个项目 =====
+
+def test_get_project_by_id(client, db):
+    """获取单个项目详情。"""
+    from app.models.user import User, UserRole
+    from app.services.auth_service import hash_password
+    user = User(username="getuser", email="getuser@test.com",
+                password=hash_password("pass123"), role=UserRole.ADMIN)
+    db.add(user)
+    db.commit()
+    resp = client.post("/api/v1/auth/login", json={"username": "getuser", "password": "pass123"})
+    token = resp.json()["access_token"]
+
+    from unittest.mock import patch
+    with patch("app.services.project_service.translate_change_name", return_value="get-test"):
+        create = client.post("/api/v1/projects", json={"name": "获取测试", "description": "描述"},
+                             headers={"Authorization": f"Bearer {token}"})
+    assert create.status_code == 200
+    pid = create.json()["id"]
+
+    resp = client.get(f"/api/v1/projects/{pid}",
+                      headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == pid
+    assert data["name"] == "获取测试"
+    assert data["description"] == "描述"
+
+
+def test_get_project_not_found(client, db):
+    """获取不存在的项目返回 404。"""
+    from app.models.user import User, UserRole
+    from app.services.auth_service import hash_password
+    user = User(username="get404", email="get404@test.com",
+                password=hash_password("pass123"), role=UserRole.ADMIN)
+    db.add(user)
+    db.commit()
+    resp = client.post("/api/v1/auth/login", json={"username": "get404", "password": "pass123"})
+    token = resp.json()["access_token"]
+
+    resp = client.get("/api/v1/projects/999999",
+                      headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 404
+
+
+def test_get_project_unauthorized(client):
+    """未登录时获取项目返回 401。"""
+    resp = client.get("/api/v1/projects/some-id")
+    assert resp.status_code == 401
+
+
+def test_create_project_unauthorized(client):
+    """未登录时创建项目返回 401。"""
+    resp = client.post("/api/v1/projects", json={"name": "测试"})
+    assert resp.status_code == 401
+
+
+def test_create_project_empty_name(client, db):
+    """创建项目时空名称返回 422。"""
+    from app.models.user import User, UserRole
+    from app.services.auth_service import hash_password
+    user = User(username="emptyuser", email="empty@test.com",
+                password=hash_password("pass123"), role=UserRole.ADMIN)
+    db.add(user)
+    db.commit()
+    resp = client.post("/api/v1/auth/login", json={"username": "emptyuser", "password": "pass123"})
+    token = resp.json()["access_token"]
+
+    resp = client.post("/api/v1/projects", json={"name": ""},
+                       headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 422
 
 
 def test_list_projects_returns_change_name(client, db):

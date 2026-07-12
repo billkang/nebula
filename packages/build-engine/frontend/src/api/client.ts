@@ -1,4 +1,5 @@
 const API_BASE = '/api/v1';
+import { logger } from '../utils/logger';
 
 interface ApiOpts { method?: string; body?: unknown; headers?: Record<string, string> }
 
@@ -6,16 +7,40 @@ async function request<T>(path: string, opts: ApiOpts = {}): Promise<T> {
   const token = localStorage.getItem('nebula_token');
   const headers: Record<string, string> = { 'Content-Type': 'application/json', ...opts.headers };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: opts.method || 'GET',
-    headers,
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: '请求失败' }));
-    throw new Error(err.detail || `HTTP ${res.status}`);
+  const method = opts.method || 'GET';
+  const fullPath = `${API_BASE}${path}`;
+
+  logger.info(`API ${method} ${path}`);
+
+  try {
+    const res = await fetch(fullPath, {
+      method,
+      headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+
+    if (res.status === 401) {
+      logger.warn('Auth token expired, redirecting to login');
+      localStorage.removeItem('nebula_token');
+      window.location.href = '/login';
+      throw new Error('登录已过期，请重新登录');
+    }
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: '请求失败' }));
+      logger.error(`API ${method} ${path} → ${res.status}`, err.detail);
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+
+    logger.info(`API ${method} ${path} → ${res.status}`);
+    return res.json();
+  } catch (err) {
+    if (err instanceof TypeError) {
+      // Network error
+      logger.error(`API ${method} ${path} — network error`, err);
+    }
+    throw err;
   }
-  return res.json();
 }
 
 export const api = {
