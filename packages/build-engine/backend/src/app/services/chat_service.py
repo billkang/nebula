@@ -1,3 +1,4 @@
+import logging
 from sqlalchemy.orm import Session as DBSession
 from app.models.session import Session
 from app.models.message import Message
@@ -6,6 +7,9 @@ from app.schemas.chat import MessageResponse, SessionResponse
 from app.agent.graph import agent
 from app.agent.state import ChatState
 from app.services.event_bus import get_event_bus
+from app.core.logging import biz_step
+
+logger = logging.getLogger(__name__)
 
 # 每个 session 对应一个 Agent 内存状态
 agent_states: dict[str, ChatState] = {}
@@ -99,6 +103,15 @@ class ChatService:
         result = agent.invoke(state)
 
         new_phase = result.get("phase", state["phase"])
+
+        # Log agent phase transitions
+        if new_phase != state["phase"]:
+            biz_step("AGENT_PHASE", "transition",
+                     session_id=session_id,
+                     project_id=state.get("project_id", "unknown"),
+                     from_phase=state["phase"],
+                     to_phase=new_phase)
+
         new_summary = result.get("req_summary", state.get("req_summary"))
 
         # 根据新 phase 生成响应
