@@ -18,7 +18,7 @@ LEVEL_MAP = {
 }
 
 
-@logs_router.post("", response_model=dict)
+@logs_router.post("", response_model=LogResponse)
 async def report_logs(
     entries: Union[LogEntry, List[LogEntry]],
     current_user: User = Depends(get_current_user),
@@ -35,7 +35,9 @@ async def report_logs(
     for entry in entries:
         try:
             entry_level = LEVEL_MAP.get(entry.level, logging.INFO)
-            log_message = f"[Frontend] {entry.message}"
+            # Sanitize message to prevent log injection (Issue 4 fix)
+            safe_message = entry.message.replace("\n", "\\n").replace("\r", "\\r")
+            log_message = f"[Frontend] {safe_message}"
             if entry.stack:
                 log_message += f"\n{entry.stack}"
             logger.log(entry_level, log_message)
@@ -44,4 +46,4 @@ async def report_logs(
             logger.warning("Invalid log entry skipped: %s", e)
 
     logger.info("Accepted %d/%d frontend log entries", accepted, len(entries))
-    return {"data": {"accepted": True}}
+    return LogResponse(accepted=True)
