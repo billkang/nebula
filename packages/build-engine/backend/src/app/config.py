@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     llm_api_key: str = Field(default="", validation_alias="DEEPSEEK_API_KEY")
     llm_base_url: str = "https://api.deepseek.com"  # API base URL
 
+    # Logging config
+    log_level: str = "INFO"
+    log_dir: str = "./logs"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "populate_by_name": True}
 
 

@@ -16,6 +16,6 @@ class MessageResponse(BaseModel):
 
 class SessionResponse(BaseModel):
     id: str
-    project_id: int
+    project_id: str
     status: str
     created_at: str

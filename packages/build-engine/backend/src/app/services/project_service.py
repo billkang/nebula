@@ -83,7 +83,7 @@ class ProjectService:
         )
 
     @staticmethod
-    def get_project(project_id: int, db: Session, user: User) -> ProjectResponse:
+    def get_project(project_id: str, db: Session, user: User) -> ProjectResponse:
         project = db.query(Project).filter(
             Project.id == project_id, Project.owner_id == user.id).first()
         if not project:
@@ -95,7 +95,7 @@ class ProjectService:
         )
 
     @staticmethod
-    def delete_project(project_id: int, db: Session):
+    def delete_project(project_id: str, db: Session):
         project = db.query(Project).filter(Project.id == project_id).first()
         if not project:
             raise HTTPException(status_code=404, detail="项目不存在")
