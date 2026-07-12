@@ -11,6 +11,11 @@ async function request<T>(path: string, opts: ApiOpts = {}): Promise<T> {
     headers,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
+  if (res.status === 401) {
+    localStorage.removeItem('nebula_token');
+    window.location.href = '/login';
+    throw new Error('登录已过期，请重新登录');
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: '请求失败' }));
     throw new Error(err.detail || `HTTP ${res.status}`);

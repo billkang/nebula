@@ -20,7 +20,7 @@ class DocService:
     """
 
     @staticmethod
-    def _get_project_info(project_id: int, db: Session) -> tuple[str, str]:
+    def _get_project_info(project_id: str, db: Session) -> tuple[str, str]:
         """查询 project_id 对应的 username 和 change_name。"""
         project = db.query(Project).filter(Project.id == project_id).first()
         if not project or not project.change_name:
@@ -31,13 +31,13 @@ class DocService:
         return user.username, project.change_name
 
     @staticmethod
-    def get_project_dir(project_id: int, db: Session) -> str:
+    def get_project_dir(project_id: str, db: Session) -> str:
         """返回项目目录路径 projects/{username}-{change_name}/。"""
         username, change_name = DocService._get_project_info(project_id, db)
         return str(BASE_DIR / "projects" / f"{username}-{change_name}")
 
     @staticmethod
-    def list_docs(project_id: int, db: Session) -> list[dict]:
+    def list_docs(project_id: str, db: Session) -> list[dict]:
         """列出项目 openspec 工作区中的所有 change 及其 artifact 状态。"""
         project_dir = Path(DocService.get_project_dir(project_id, db))
         changes_dir = project_dir / "openspec" / "changes"
@@ -58,7 +58,7 @@ class DocService:
         return result
 
     @staticmethod
-    def generate_docs(project_id: int, db: Session,
+    def generate_docs(project_id: str, db: Session,
                       req_summary: str | None = None,
                       out_of_scope: list[str] | None = None) -> dict:
         """生成 SDD 文档到项目 openspec 工作区。
@@ -107,7 +107,7 @@ class DocService:
         return {"success": True, "message": "文档生成完成"}
 
     @staticmethod
-    def get_doc(project_id: int, doc_type: str, db: Session) -> str | None:
+    def get_doc(project_id: str, doc_type: str, db: Session) -> str | None:
         """从项目 openspec 工作区读取指定类型的 SDD 文档内容。"""
         project_dir = Path(DocService.get_project_dir(project_id, db))
         # 找到最新的 change

@@ -11,13 +11,13 @@ doc_router = APIRouter(prefix="/projects/{project_id}/docs", tags=["documents"])
 
 
 @doc_router.get("")
-def list_docs(project_id: int, db: Session = Depends(get_db),
+def list_docs(project_id: str, db: Session = Depends(get_db),
               user: User = Depends(get_current_user)):
     return DocService.list_docs(project_id, db)
 
 
 @doc_router.get("/{doc_type}")
-def get_doc(project_id: int, doc_type: str, db: Session = Depends(get_db),
+def get_doc(project_id: str, doc_type: str, db: Session = Depends(get_db),
             user: User = Depends(get_current_user)):
     content = DocService.get_doc(project_id, doc_type, db)
     if content is None:
@@ -26,7 +26,7 @@ def get_doc(project_id: int, doc_type: str, db: Session = Depends(get_db),
 
 
 @doc_router.post("/generate")
-def generate_docs(project_id: int, db: Session = Depends(get_db),
+def generate_docs(project_id: str, db: Session = Depends(get_db),
                   user: User = Depends(get_current_user)):
     # 从项目最新 session 的 agent state 中提取上下文
     req_summary = None
