@@ -47,3 +47,5 @@ packages/build-engine/backend/logs/
 .alembic_done
 .seed_done
 .requirements.hash
+logs/
+packages/build-engine/frontend/logs/
