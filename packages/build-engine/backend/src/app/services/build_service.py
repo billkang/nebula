@@ -6,6 +6,7 @@ from typing import Optional
 from app.config import settings
 from app.services.coder_backend import CoderBackend
 from app.services.backends import create_backend
+from app.core.logging import biz_stage_start, biz_stage_end, biz_step
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -47,17 +48,21 @@ class BuildService:
         return missing
 
     def build(self, project_id: str, source_dir: str | None = None) -> dict:
+        biz_stage_start("CODE_GEN", project_id=project_id)
         st = BuildService._state(project_id)
         project_dir = Path(source_dir) if source_dir else BASE_DIR / "projects" / project_id
 
         if BuildService._check_cancelled(project_id):
+            biz_stage_end("CODE_GEN", status="cancelled", project_id=project_id)
             return BuildService.get_status(project_id)
 
         # ── 阶段 1-2: 构建容器内测试 + 验证 + 打包 ──
         st["status"] = "testing"
         st["message"] = "正在构建容器中运行测试和打包..."
+        biz_step("CODE_GEN", "container-build")
 
         version = BuildService._next_version(project_id)
+        biz_step("CODE_GEN", "next-version", version=version)
 
         try:
             build_result = self._backend.execute_build(
@@ -67,33 +72,40 @@ class BuildService:
         except Exception as e:
             st["status"] = "failed"
             st["message"] = f"构建容器执行异常: {str(e)[:500]}"
+            biz_stage_end("CODE_GEN", status="failed", reason="container_exception", project_id=project_id)
             return BuildService.get_status(project_id)
 
         if build_result.status != "success":
             st["status"] = "failed"
             st["message"] = build_result.message or "构建失败"
             st["test_output"] = build_result.test_output
+            biz_stage_end("CODE_GEN", status="failed", reason="build_failed", message=build_result.message)
             return BuildService.get_status(project_id)
 
         # ── 阶段 3: 宿主机端二次确认完整性 ──
         if BuildService._check_cancelled(project_id):
+            biz_stage_end("CODE_GEN", status="cancelled", project_id=project_id)
             return BuildService.get_status(project_id)
         st["status"] = "verifying"
         st["message"] = "验证构建产物..."
+        biz_step("CODE_GEN", "verify-artifacts")
 
         missing = BuildService.verify_integrity(project_dir)
         if missing:
             st["status"] = "failed"
             st["message"] = f"缺少必要文件: {', '.join(missing)}"
+            biz_stage_end("CODE_GEN", status="failed", reason="integrity_check_failed", missing=missing)
             return BuildService.get_status(project_id)
 
         # ── 阶段 4: 推送 runtime ──
         if BuildService._check_cancelled(project_id):
+            biz_stage_end("CODE_GEN", status="cancelled", project_id=project_id)
             return BuildService.get_status(project_id)
 
         st["status"] = "success"
         st["message"] = f"构建完成，Artifact: {build_result.artifact_path}"
         st["artifact_version"] = build_result.version or version
+        biz_step("CODE_GEN", "push-runtime", version=st["artifact_version"])
 
         try:
             from app.services.runtime_client import RuntimeClient
@@ -107,6 +119,7 @@ class BuildService:
         except Exception as e:
             st["runtime_status"] = f"push_failed: {str(e)[:200]}"
 
+        biz_stage_end("CODE_GEN", status="ok", project_id=project_id, version=st.get("artifact_version"))
         return BuildService.get_status(project_id)
 
     @staticmethod
