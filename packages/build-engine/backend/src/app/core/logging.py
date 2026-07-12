@@ -11,6 +11,9 @@ import logging
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime
 
+# Track per-project log handlers to avoid duplicate attachments
+_project_log_handlers: set[str] = set()
+
 
 def setup_logging(log_level: str = "INFO", log_dir: str = "./logs") -> None:
     """Initialize the application-wide logging configuration.
@@ -44,17 +47,18 @@ def setup_logging(log_level: str = "INFO", log_dir: str = "./logs") -> None:
     console_handler.setLevel(level)
     console_handler.setFormatter(formatter)
 
-    # Configure root logger
+    # Configure root logger — all nebula.* loggers propagate to root by default
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
     root_logger.addHandler(file_handler)
     root_logger.addHandler(console_handler)
 
-    # Also configure the nebula app logger explicitly
+    # Prevent nebula namespace from double-logging through both its own handlers
+    # and root's handlers. Setting propagate=False means nebula.* messages only
+    # go to root's handlers (where they were already registered above).
     app_logger = logging.getLogger("nebula")
     app_logger.setLevel(level)
-    app_logger.addHandler(file_handler)
-    app_logger.addHandler(console_handler)
+    app_logger.propagate = True
 
 
 # Business stage logger
@@ -80,8 +84,15 @@ def biz_step(stage: str, step: str, **metadata) -> None:
 
 
 def _fmt_meta(metadata: dict) -> str:
-    """Format metadata dict as 'key=val key=val' string."""
-    return " ".join(f"{k}={v}" for k, v in metadata.items())
+    """Format metadata dict as 'key=val key=val' string.
+
+    Values containing spaces are quoted so the output remains parseable:
+    ``key="hello world" plain=ok``
+    """
+    return " ".join(
+        f'{k}="{v}"' if " " in str(v) else f"{k}={v}"
+        for k, v in metadata.items()
+    )
 
 
 def setup_project_logging(project_dir: str, change_name: str) -> None:
@@ -89,11 +100,20 @@ def setup_project_logging(project_dir: str, change_name: str) -> None:
 
     Creates a TimedRotatingFileHandler at {project_dir}/logs/{change_name}.log
     that captures all [BIZ] entries for this project.
+
+    Idempotent — repeated calls with the same (project_dir, change_name)
+    do not add duplicate handlers.
     """
     log_dir = os.path.join(project_dir, "logs")
     os.makedirs(log_dir, exist_ok=True)
 
     log_file = os.path.join(log_dir, f"{change_name}.log")
+    handler_key = f"{log_file}"
+
+    # Skip if this project log handler already exists
+    if handler_key in _project_log_handlers:
+        return
+    _project_log_handlers.add(handler_key)
 
     formatter = logging.Formatter(
         "%(asctime)s | %(levelname)-5s | %(name)s | %(message)s",

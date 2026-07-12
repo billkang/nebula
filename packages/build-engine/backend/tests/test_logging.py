@@ -35,7 +35,7 @@ def test_setup_logging_respects_log_level():
         nebula_biz = logging.getLogger("nebula.biz")
         # If not explicitly set, check that the effective level is ERROR
         effective = nebula_biz.getEffectiveLevel()
-        assert effective <= logging.ERROR, f"Expected effective level <= ERROR, got {effective}"
+        assert effective == logging.ERROR, f"Expected effective level == ERROR, got {effective}"
 
 
 def test_setup_logging_console_handler():
@@ -43,12 +43,13 @@ def test_setup_logging_console_handler():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         setup_logging(log_level="INFO", log_dir=tmpdir)
-        test_logger = logging.getLogger("nebula")
+        # Handlers are now on the root logger (nebula propagates to root)
+        root_logger = logging.getLogger()
         has_console = any(
             isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)
-            for h in test_logger.handlers
+            for h in root_logger.handlers
         )
-        assert has_console, "Should have a console (StreamHandler) handler"
+        assert has_console, "Should have a console (StreamHandler) handler on root logger"
 
 
 def test_app_logging_without_crash(client, db):
@@ -88,9 +89,10 @@ def test_rotating_file_handler_configuration():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         setup_logging(log_level="INFO", log_dir=tmpdir)
-        app_logger = logging.getLogger("nebula")
+        # Handlers are on the root logger; nebula.* loggers propagate to root
+        root_logger = logging.getLogger()
 
-        file_handlers = [h for h in app_logger.handlers
+        file_handlers = [h for h in root_logger.handlers
                          if isinstance(h, logging.handlers.TimedRotatingFileHandler)]
         assert file_handlers, "Should have a TimedRotatingFileHandler"
         handler = file_handlers[0]
@@ -321,4 +323,4 @@ def test_log_reporting_api_with_auth(client, db):
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
-    assert response.json()["data"]["accepted"] is True
+    assert response.json()["accepted"] is True

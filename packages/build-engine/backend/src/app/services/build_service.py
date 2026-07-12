@@ -119,7 +119,13 @@ class BuildService:
         except Exception as e:
             st["runtime_status"] = f"push_failed: {str(e)[:200]}"
 
-        biz_stage_end("CODE_GEN", status="ok", project_id=project_id, version=st.get("artifact_version"))
+        runtime_status = st.get("runtime_status", "")
+        if "push_failed" in runtime_status:
+            biz_stage_end("CODE_GEN", status="failed", reason="runtime_push_failed",
+                          project_id=project_id, version=st.get("artifact_version"))
+        else:
+            biz_stage_end("CODE_GEN", status="ok", project_id=project_id,
+                          version=st.get("artifact_version"))
         return BuildService.get_status(project_id)
 
     @staticmethod

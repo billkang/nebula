@@ -40,6 +40,9 @@ packages/build-engine/backend/projects/
 # Backend openspec workspace (user project dirs, not 星云 platform SDD)
 packages/build-engine/backend/openspec/
 
+# Log files (runtime-generated)
+packages/build-engine/backend/logs/
+
 # Dev script state markers
 .alembic_done
 .seed_done
