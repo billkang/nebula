@@ -169,23 +169,19 @@ def test_biz_logger_uses_dedicated_logger():
 
 
 def test_setup_project_logging_creates_project_log():
-    """Verify per-project logging creates log file in project dir."""
+    """Verify per-project logging creates log file in the global log dir."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        project_dir = os.path.join(tmpdir, "projects", "admin-add-logging")
         from app.core.logging import setup_logging, setup_project_logging, biz_stage_start
         setup_logging(log_level="INFO", log_dir=tmpdir)
 
-        # Simulate project creation
-        setup_project_logging(project_dir=project_dir, change_name="add-logging")
+        # Simulate project creation — centralized in log_dir, not per-project dir
+        setup_project_logging(log_dir=tmpdir, change_name="add-logging")
         biz_stage_start("CREATE_PROJECT", project_id="p1", change_name="add-logging")
 
-        project_log_dir = os.path.join(project_dir, "logs")
-        assert os.path.isdir(project_log_dir), "Project log dir should exist"
-
-        log_files = [f for f in os.listdir(project_log_dir) if f.endswith(".log")]
+        log_files = [f for f in os.listdir(tmpdir) if f.endswith(".log")]
         assert log_files, "Project log file should exist"
 
-        log_path = os.path.join(project_log_dir, log_files[0])
+        log_path = os.path.join(tmpdir, "add-logging.log")
         with open(log_path) as f:
             content = f.read()
         assert "[BIZ] [CREATE_PROJECT] START" in content

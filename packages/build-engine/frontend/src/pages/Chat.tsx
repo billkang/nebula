@@ -57,6 +57,7 @@ export default function Chat() {
       return api.sessions.send(id, sessionId, c);
     },
     onSuccess: (msgs) => {
+      setMessages(msgs); // 直接从 POST 响应更新消息，避免 SSE 延迟/丢失导致 UI 空白
       const last = msgs[msgs.length - 1];
       if (last?.phase === 'confirming') { setShowConfirm(true); setReqSummary(last.content); }
       if (last?.phase === 'generating') setShowConfirm(false);

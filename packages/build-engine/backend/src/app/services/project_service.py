@@ -9,6 +9,7 @@ from app.models.project import Project
 from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectResponse
 from app.llm import translate_change_name
+from app.config import settings
 from app.core.logging import biz_stage_start, biz_stage_end, biz_step, setup_project_logging
 
 logger = logging.getLogger(__name__)
@@ -69,8 +70,8 @@ class ProjectService:
             )
             biz_step("CREATE_PROJECT", "openspec-init")
 
-            # Set up per-project logging
-            setup_project_logging(project_dir=str(project_dir), change_name=change_name)
+            # Set up per-project logging — centralized in backend/logs/
+            setup_project_logging(log_dir=settings.log_dir, change_name=change_name)
 
         except FileExistsError:
             # 目录已存在 — 回滚 DB 记录

@@ -95,16 +95,15 @@ def _fmt_meta(metadata: dict) -> str:
     )
 
 
-def setup_project_logging(project_dir: str, change_name: str) -> None:
+def setup_project_logging(log_dir: str, change_name: str) -> None:
     """Configure a per-project log file for business stage logs.
 
-    Creates a TimedRotatingFileHandler at {project_dir}/logs/{change_name}.log
+    Creates a TimedRotatingFileHandler at {log_dir}/{change_name}.log
     that captures all [BIZ] entries for this project.
 
-    Idempotent — repeated calls with the same (project_dir, change_name)
+    Idempotent — repeated calls with the same (log_dir, change_name)
     do not add duplicate handlers.
     """
-    log_dir = os.path.join(project_dir, "logs")
     os.makedirs(log_dir, exist_ok=True)
 
     log_file = os.path.join(log_dir, f"{change_name}.log")
