@@ -8,16 +8,19 @@ from app.services.coder_backend import CoderBackend
 from app.services.backends import create_backend
 from app.core.logging import biz_stage_start, biz_stage_end, biz_step
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
-
 _build_states: dict[str, dict] = {}
 _async_builds: dict[str, dict] = {}
 _async_builds_lock = threading.Lock()
 
 
 def _build_running_in_thread(project_id: str):
+    """Background thread: run BuildService.build using stored project_dir."""
+    with _async_builds_lock:
+        entry = _async_builds.get(project_id, {})
+        project_dir = entry.get("project_dir", "")
+        source_dir = entry.get("source_dir")  # sandbox rebuild override
     try:
-        result = BuildService().build(project_id)
+        result = BuildService().build(project_id, project_dir, source_dir=source_dir)
         with _async_builds_lock:
             if project_id in _async_builds:
                 _async_builds[project_id]["result"] = result
@@ -47,10 +50,19 @@ class BuildService:
                 missing.append(item)
         return missing
 
-    def build(self, project_id: str, source_dir: str | None = None) -> dict:
+    def build(self, project_id: str, project_dir: str,
+              source_dir: str | None = None) -> dict:
+        """Run a build for the given project.
+
+        Args:
+            project_id: UUID used for in-memory state tracking.
+            project_dir: Canonical project filesystem path (for artifacts/versioning).
+            source_dir: Optional override — if set, build reads source from here
+                        (used by sandbox rebuild).
+        """
         biz_stage_start("CODE_GEN", project_id=project_id)
         st = BuildService._state(project_id)
-        project_dir = Path(source_dir) if source_dir else BASE_DIR / "projects" / project_id
+        work_dir = Path(source_dir) if source_dir else Path(project_dir)
 
         if BuildService._check_cancelled(project_id):
             biz_stage_end("CODE_GEN", status="cancelled", project_id=project_id)
@@ -61,12 +73,12 @@ class BuildService:
         st["message"] = "正在构建容器中运行测试和打包..."
         biz_step("CODE_GEN", "container-build")
 
-        version = BuildService._next_version(project_id)
+        version = BuildService._next_version(project_dir)
         biz_step("CODE_GEN", "next-version", version=version)
 
         try:
             build_result = self._backend.execute_build(
-                project_dir=str(project_dir),
+                project_dir=str(work_dir),
                 version=version,
             )
         except Exception as e:
@@ -90,7 +102,7 @@ class BuildService:
         st["message"] = "验证构建产物..."
         biz_step("CODE_GEN", "verify-artifacts")
 
-        missing = BuildService.verify_integrity(project_dir)
+        missing = BuildService.verify_integrity(work_dir)
         if missing:
             st["status"] = "failed"
             st["message"] = f"缺少必要文件: {', '.join(missing)}"
@@ -129,8 +141,8 @@ class BuildService:
         return BuildService.get_status(project_id)
 
     @staticmethod
-    def _next_version(project_id: str) -> str:
-        existing = BuildService.list_artifacts(project_id)
+    def _next_version(project_dir: str) -> str:
+        existing = BuildService.list_artifacts(project_dir)
         max_num = 0
         for v in existing:
             vname = v["version"]
@@ -159,7 +171,8 @@ class BuildService:
         return BuildService.get_status(project_id)
 
     @staticmethod
-    def start_async_build(project_id: str) -> dict:
+    def start_async_build(project_id: str, project_dir: str,
+                          source_dir: str | None = None) -> dict:
         with _async_builds_lock:
             if project_id in _async_builds and not _async_builds[project_id].get("done"):
                 return {"status": "already_running", "message": "构建已在运行"}
@@ -167,7 +180,10 @@ class BuildService:
             st["status"] = "starting"
             st["message"] = "正在启动构建..."
             st["cancel_requested"] = False
-            _async_builds[project_id] = {"done": False, "result": None}
+            _async_builds[project_id] = {
+                "done": False, "result": None,
+                "project_dir": project_dir, "source_dir": source_dir,
+            }
         thread = threading.Thread(target=_build_running_in_thread, args=(project_id,), daemon=True)
         thread.start()
         return {"status": "started", "message": "构建已启动"}
@@ -194,8 +210,8 @@ class BuildService:
         }
 
     @staticmethod
-    def list_artifacts(project_id: str) -> list[dict]:
-        artifacts_dir = BASE_DIR / "projects" / project_id / "artifacts"
+    def list_artifacts(project_dir: str) -> list[dict]:
+        artifacts_dir = Path(project_dir) / "artifacts"
         if not artifacts_dir.exists():
             return []
         artifacts = []

@@ -7,11 +7,10 @@ from sqlalchemy.orm import Session
 
 from app.models.project import Project
 from app.models.user import User
+from app.utils.project_path import get_projects_base
 from app.core.logging import biz_stage_start, biz_stage_end, biz_step
 
 logger = logging.getLogger(__name__)
-
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 
 class DocService:
@@ -36,9 +35,9 @@ class DocService:
 
     @staticmethod
     def get_project_dir(project_id: str, db: Session) -> str:
-        """返回项目目录路径 projects/{username}-{change_name}/。"""
+        """返回项目目录路径 {projects_dir}/{username}-{change_name}/。"""
         username, change_name = DocService._get_project_info(project_id, db)
-        return str(BASE_DIR / "projects" / f"{username}-{change_name}")
+        return str(get_projects_base() / f"{username}-{change_name}")
 
     @staticmethod
     def list_docs(project_id: str, db: Session) -> list[dict]:

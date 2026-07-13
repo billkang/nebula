@@ -1,6 +1,5 @@
 """DocService 单元测试 — 项目 openspec 工作区路径"""
 import os
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -8,12 +7,14 @@ from fastapi.testclient import TestClient
 from app.models.user import User, UserRole
 from app.services.auth_service import hash_password
 from app.services.doc_service import DocService
+from app.utils.project_path import get_projects_base
 
-BASE_DIR = Path(__file__).resolve().parent.parent
 
+def _setup_project(client, db, username="doc_user"):
+    """辅助：创建测试用户 + 项目，返回 (token, pid)。
 
-def _setup_project(client, db, username="doc_user", change_name="doc-test"):
-    """辅助：创建测试用户 + 项目，返回 (token, pid)。"""
+    change_name 由 conftest 的 autouse mock 统一设为 test-project。
+    """
     user = User(username=username, email=f"{username}@test.com",
                 password=hash_password("pass123"), role=UserRole.ADMIN)
     db.add(user)
@@ -22,9 +23,8 @@ def _setup_project(client, db, username="doc_user", change_name="doc-test"):
                        json={"username": username, "password": "pass123"})
     token = resp.json()["access_token"]
 
-    with patch("app.services.project_service.translate_change_name", return_value=change_name):
-        resp = client.post("/api/v1/projects", json={"name": f"{change_name}项目"},
-                           headers={"Authorization": f"Bearer {token}"})
+    resp = client.post("/api/v1/projects", json={"name": f"{username}项目"},
+                       headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
     return token, resp.json()["id"]
 
@@ -34,8 +34,8 @@ class TestDocServiceGenerate:
 
     def test_generate_docs_writes_conversation_context(self, client, db):
         """generate_docs 将 conversation_context.md 写入项目根目录。"""
-        token, pid = _setup_project(client, db, "genctx", "gen-ctx")
-        project_dir = Path(BASE_DIR / "projects" / "genctx-gen-ctx")
+        token, pid = _setup_project(client, db, "genctx")
+        project_dir = get_projects_base() / "genctx-test-project"
 
         assert not (project_dir / "conversation_context.md").exists()
 
@@ -57,8 +57,8 @@ class TestDocServiceGenerate:
 
     def test_generate_docs_no_out_of_scope_section(self, client, db):
         """out_of_scope 为 None 时省略 ## Out of Scope 章节。"""
-        token, pid = _setup_project(client, db, "noscope", "no-scope")
-        project_dir = Path(BASE_DIR / "projects" / "noscope-no-scope")
+        token, pid = _setup_project(client, db, "noscope")
+        project_dir = get_projects_base() / "noscope-test-project"
 
         with patch("app.services.doc_service.subprocess.run") as mock_run:
             mock_run.return_value.returncode = 0
@@ -77,7 +77,7 @@ class TestDocServiceGenerate:
 
     def test_generate_docs_openspec_cli_failure(self, client, db):
         """openspec CLI 返回非零退出码时返回错误。"""
-        token, pid = _setup_project(client, db, "genfail", "gen-fail")
+        token, pid = _setup_project(client, db, "genfail")
 
         with patch("app.services.doc_service.subprocess.run") as mock_run:
             mock_run.return_value.returncode = 1
@@ -101,15 +101,14 @@ class TestDocServicePath:
                            json={"username": "pathuser", "password": "pass123"})
         token = resp.json()["access_token"]
 
-        with patch("app.services.project_service.translate_change_name", return_value="path-test"):
-            resp = client.post("/api/v1/projects", json={"name": "路径测试"},
-                               headers={"Authorization": f"Bearer {token}"})
+        resp = client.post("/api/v1/projects", json={"name": "路径测试"},
+                           headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 200
         pid = resp.json()["id"]
 
         # 通过 DocService 获取项目目录路径
         project_dir = DocService.get_project_dir(pid, db)
-        expected = str(BASE_DIR / "projects" / "pathuser-path-test")
+        expected = str(get_projects_base() / "pathuser-test-project")
         assert project_dir == expected, f"预期 {expected}，实际 {project_dir}"
 
     def test_list_docs_from_project_workspace(self, client: TestClient, db):
@@ -122,9 +121,8 @@ class TestDocServicePath:
                            json={"username": "listdoc", "password": "pass123"})
         token = resp.json()["access_token"]
 
-        with patch("app.services.project_service.translate_change_name", return_value="list-test"):
-            resp = client.post("/api/v1/projects", json={"name": "列表测试"},
-                               headers={"Authorization": f"Bearer {token}"})
+        resp = client.post("/api/v1/projects", json={"name": "列表测试"},
+                           headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 200
         pid = resp.json()["id"]
 
@@ -142,9 +140,8 @@ class TestDocServicePath:
                            json={"username": "getdoc", "password": "pass123"})
         token = resp.json()["access_token"]
 
-        with patch("app.services.project_service.translate_change_name", return_value="get-test"):
-            resp = client.post("/api/v1/projects", json={"name": "读取测试"},
-                               headers={"Authorization": f"Bearer {token}"})
+        resp = client.post("/api/v1/projects", json={"name": "读取测试"},
+                           headers={"Authorization": f"Bearer {token}"})
         assert resp.status_code == 200
         pid = resp.json()["id"]
 

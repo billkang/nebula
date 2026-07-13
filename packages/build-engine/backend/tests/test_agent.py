@@ -1,178 +1,115 @@
-"""Agent 单元测试 — 覆盖 entry_router 路由逻辑和各阶段节点函数"""
+"""Agent 单元测试 — 覆盖旅游助手流程"""
+from unittest.mock import patch
+
 from langgraph.graph import END
-from app.agent.graph import entry_router, CONFIRM_KW, REVISE_KW
-from app.agent.nodes import greeting_node, collect_node, clarify_node, confirm_node, generate_node
+from app.agent.graph import entry_router
+from app.agent.nodes import greeting_node, collect_node, planning_node, generate_node
 from app.agent.state import ChatState
 
 
-def _state(messages: list | None = None, phase: str = "greeting",
+def _state(messages: list | None = None, phase: str = "collecting",
            req_summary: str | None = None,
-           out_of_scope: list[str] | None = None) -> ChatState:
+           travel_plan: str | None = None) -> ChatState:
     return {
         "messages": messages or [],
         "phase": phase,
         "req_summary": req_summary,
-        "out_of_scope": out_of_scope,
+        "out_of_scope": None,
         "project_id": None,
         "session_id": None,
+        "response_content": None,
+        "travel_plan": travel_plan,
     }
 
 
 # ── entry_router ──────────────────────────────────────────────────────
 
-def test_router_greeting_no_welcome():
-    """greeting 阶段且无欢迎消息 → 路由到 greeting node"""
-    st = _state([{"role": "user", "content": "你好"}], phase="greeting")
-    assert entry_router(st) == "greeting"
+
+def test_router_no_user_msg_ends():
+    """最后一条消息不是用户消息 → END"""
+    st = _state([{"role": "assistant", "content": "你好"}], phase="collecting")
+    assert entry_router(st) == END
 
 
-def test_router_greeting_has_welcome_no_user():
-    """greeting 已有欢迎消息，最后一条是 assistant → END"""
-    st = _state([{"role": "assistant", "content": "欢迎来到星云！请描述你的需求。"},
-                  {"role": "user", "content": "我想做个功能"}],
-                phase="greeting")
+def test_router_user_msg_routes_by_phase():
+    """用户消息 → 按 phase 路由到对应节点"""
+    st = _state([{"role": "user", "content": "帮我规划旅游"}], phase="collecting")
     assert entry_router(st) == "collect"
 
+    st2 = _state([{"role": "user", "content": "已准备好"}], phase="planning")
+    assert entry_router(st2) == "planning"
 
-def test_router_greeting_has_welcome_assistant_last():
-    """greeting 已有欢迎消息，最后一条是 assistant → END"""
-    st = _state([{"role": "assistant", "content": "欢迎来到星云！请描述你的需求。"}],
-                phase="greeting")
+    st3 = _state([{"role": "user", "content": "继续"}], phase="generating")
+    assert entry_router(st3) == "generate"
+
+
+def test_router_empty_messages():
+    """无消息 → END"""
+    st = _state([], phase="collecting")
     assert entry_router(st) == END
-
-
-def test_router_collecting_routes_to_collecting():
-    st = _state([{"role": "user", "content": "我想加个登录功能"}], phase="collecting")
-    assert entry_router(st) == "collecting"
-
-
-def test_router_clarifying_routes_to_clarifying():
-    st = _state([{"role": "user", "content": "用 JWT 认证"}], phase="clarifying")
-    assert entry_router(st) == "clarifying"
-
-
-def test_router_confirming_confirm_kw():
-    for kw in CONFIRM_KW:
-        st = _state([{"role": "user", "content": kw}], phase="confirming")
-        assert entry_router(st) == "generate", f"KW '{kw}' 应路由到 generate"
-
-
-def test_router_confirming_revise_kw():
-    for kw in ("修改", "调整", "补充"):
-        st = _state([{"role": "user", "content": kw}], phase="confirming")
-        assert entry_router(st) == "collect", f"KW '{kw}' 应路由到 collect"
-
-
-def test_router_confirming_other():
-    st = _state([{"role": "user", "content": "让我想想"}], phase="confirming")
-    assert entry_router(st) == "confirm"
-
-
-def test_router_generating_no_user_msg():
-    """generating 阶段无新用户消息 → END"""
-    st = _state([{"role": "assistant", "content": "文档已生成"}], phase="generating")
-    assert entry_router(st) == END
-
-
-def test_router_generating_user_msg():
-    """generating 阶段有用户新消息 → generating（兜底返回 phase）"""
-    st = _state([{"role": "assistant", "content": "文档已生成"},
-                  {"role": "user", "content": "好的"}],
-                phase="generating")
-    assert entry_router(st) == "generating"
 
 
 # ── greeting_node ─────────────────────────────────────────────────────
 
-def test_greeting_node_sends_welcome():
+def test_greeting_node_pass_through():
+    """greeting_node 是直通节点（欢迎语已在 create_session 中预存）"""
     st = _state([], phase="greeting")
     result = greeting_node(st)
     assert result["phase"] == "collecting"
-    assert "欢迎来到星云" in result["messages"][-1]["content"]
-
-
-def test_greeting_node_skips_if_already_welcomed():
-    st = _state([{"role": "assistant", "content": "欢迎来到星云！请描述需求。"}], phase="greeting")
-    result = greeting_node(st)
-    assert "messages" not in result  # 不应追加重复欢迎语
-    assert result["phase"] == "collecting"
+    assert "messages" not in result  # 不应追加任何消息
 
 
 # ── collect_node ──────────────────────────────────────────────────────
 
-def test_collect_node_long_msg_transitions():
-    """用户消息 > 50 字 → 转 clarifying"""
-    msg = "我想实现一个用户注册登录功能，包含邮箱验证、密码重置和 JWT 认证。还有用户管理、角色权限分配和数据报表查看功能。"  # 60+ 字
-    st = _state([{"role": "user", "content": msg}], phase="collecting")
-    result = collect_node(st)
-    assert result["phase"] == "clarifying"
-    assert result.get("req_summary") is not None
+def test_collect_node_returns_response():
+    """collect_node 应返回 LLM 响应内容"""
+    st = _state([{"role": "user", "content": "我想去北京玩三天，预算5000"}], phase="collecting")
+    with patch("app.agent.nodes._safe_call_llm") as mock_llm:
+        mock_llm.return_value = "好的，信息已完整！准备为您生成北京三日游规划。"
+        result = collect_node(st)
+    assert "response_content" in result
+    assert result["phase"] == "planning"  # LLM 表示信息完整 → 转 planning
 
 
-def test_collect_node_short_msg_asks():
-    """用户消息 <= 50 字且未追问过 → 追问"""
-    st = _state([{"role": "user", "content": "你好"}], phase="collecting")
-    result = collect_node(st)
-    assert result["phase"] == "collecting"
-    assert "具体说说" in result["messages"][-1]["content"]
+# ── planning_node ─────────────────────────────────────────────────────
 
-
-# ── clarify_node ──────────────────────────────────────────────────────
-
-def test_clarify_node_accumulates_summary():
-    st = _state([{"role": "user", "content": "用 JWT 做认证，token 有效期设 24 小时"},
-                  {"role": "user", "content": "还需要加密码重置功能和邮箱验证"}],
-                phase="clarifying", req_summary="需求：登录")
-    result = clarify_node(st)
-    assert "补充：" in (result.get("req_summary") or "")
-    assert result["phase"] in ("clarifying", "confirming")
-
-
-def test_clarify_node_enough_messages_transitions():
-    """用户消息 >= 3 条 → 转 confirming"""
-    st = _state([{"role": "user", "content": "a"},
-                  {"role": "user", "content": "b"},
-                  {"role": "user", "content": "c"}],
-                phase="clarifying", req_summary="一些需求")
-    result = clarify_node(st)
-    assert result["phase"] == "confirming"
-
-
-# ── confirm_node ──────────────────────────────────────────────────────
-
-def test_confirm_node_shows_summary():
-    st = _state([], phase="confirming", req_summary="需求：登录功能")
-    result = confirm_node(st)
-    assert result["phase"] == "confirming"
-    assert "需求摘要" in result["messages"][-1]["content"]
-    assert "登录功能" in result["messages"][-1]["content"]
-
-
-def test_confirm_node_already_shown():
-    st = _state([{"role": "assistant", "content": "需求摘要如下"}], phase="confirming")
-    result = confirm_node(st)
-    assert "messages" not in result
-    assert result["phase"] == "confirming"
+def test_planning_node_generates_travel_plan():
+    """planning_node 生成旅游规划并存储到 travel_plan"""
+    st = _state([
+        {"role": "assistant", "content": "请告诉我你的出行信息"},
+        {"role": "user", "content": "去北京，3天，预算5000"},
+    ], phase="planning")
+    with patch("app.agent.nodes._safe_call_llm") as mock_llm:
+        mock_llm.return_value = "## 📍 北京\n三日游行程..."
+        result = planning_node(st)
+    assert result["phase"] == "generating"
+    assert "travel_plan" in result
+    assert result["travel_plan"]  # 不应为空
+    assert "response_content" in result
 
 
 # ── generate_node ─────────────────────────────────────────────────────
 
-def test_generate_node():
-    st = _state([], phase="generating")
+def test_generate_node_with_travel_plan():
+    """有 travel_plan 时输出规划"""
+    plan = "## 北京三日游\nDay 1: 故宫\n..."
+    st = _state([], phase="generating", travel_plan=plan)
     result = generate_node(st)
-    assert result["phase"] == "generating"
-    assert "生成设计文档" in result["messages"][-1]["content"]
+    assert result["phase"] == "generated"
+    assert result["response_content"] == plan
 
 
-# ── edge cases ────────────────────────────────────────────────────────
+def test_generate_node_no_travel_plan():
+    """无 travel_plan 时回退到 planning 阶段"""
+    st = _state([], phase="generating", travel_plan=None)
+    result = generate_node(st)
+    assert result["phase"] == "planning"
+    assert "response_content" in result
 
-def test_router_empty_messages():
-    """空对话 → greeting 节点"""
-    st = _state([], phase="greeting")
-    assert entry_router(st) == "greeting"
 
+# ── entry_router unknown phase ────────────────────────────────────────
 
-def test_router_not_user_msg():
-    st = _state([{"role": "assistant", "content": "好的"}], phase="collecting")
+def test_router_unknown_phase():
+    """未知 phase 路由到 END"""
+    st = _state([{"role": "user", "content": "hi"}], phase="unknown_phase")
     assert entry_router(st) == END
-

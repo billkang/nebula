@@ -35,11 +35,23 @@ class TestCreateSession:
 
         assert session.id in agent_states
         state = agent_states[session.id]
-        assert state["phase"] == "greeting"
+        assert state["phase"] == "collecting"  # greeting 已预存，直接进入收集
         assert state["project_id"] == project_id
         assert state["session_id"] == session.id
-        assert state["messages"] == []
+        assert len(state["messages"]) == 1  # 预存的欢迎语
+        assert state["messages"][0]["role"] == "assistant"
+        assert "欢迎来到星云" in state["messages"][0]["content"]
         assert state["req_summary"] is None
+        assert state["travel_plan"] is None
+
+    def test_create_session_saves_greeting_to_db(self, db):
+        """创建 session 时欢迎语应写入数据库。"""
+        session = ChatService.create_session(project_id="p1", db=db)
+        messages = ChatService.get_messages(session.id, db=db)
+        assert len(messages) == 1
+        assert messages[0].role == "agent"
+        assert messages[0].phase == "greeting"
+        assert "欢迎来到星云" in messages[0].content
 
     def test_create_session_clears_previous_state(self, db):
         """创建新 session 不干扰其他 session 的状态。"""
@@ -49,8 +61,8 @@ class TestCreateSession:
         assert s1.id in agent_states
         assert s2.id in agent_states
 
-        agent_states[s1.id]["phase"] = "collecting"
-        assert agent_states[s2.id]["phase"] == "greeting"  # 不受影响
+        agent_states[s1.id]["phase"] = "planning"
+        assert agent_states[s2.id]["phase"] == "collecting"  # 不受影响
 
 
 class TestGetSessions:
@@ -149,7 +161,7 @@ class TestSendMessage:
     @patch("app.services.chat_service.agent")
     def test_send_message_saves_user_message(self, mock_agent, mock_get_eb, db):
         """发送消息后保存用户消息到数据库。"""
-        mock_agent.invoke.return_value = {"phase": "greeting"}
+        mock_agent.invoke.return_value = {"phase": "collecting", "messages": []}
         from app.models.user import User
         from app.services.auth_service import hash_password
         user = User(username="chatuser", email="chat@test.com",
@@ -169,7 +181,7 @@ class TestSendMessage:
     @patch("app.services.chat_service.agent")
     def test_send_message_invokes_agent(self, mock_agent, mock_get_eb, db):
         """发送消息后触发 agent.invoke。"""
-        mock_agent.invoke.return_value = {"phase": "collecting"}
+        mock_agent.invoke.return_value = {"phase": "collecting", "messages": [], "response_content": ""}
         from app.models.user import User
         from app.services.auth_service import hash_password
         user = User(username="chatuser2", email="chat2@test.com",
@@ -186,7 +198,7 @@ class TestSendMessage:
     @patch("app.services.chat_service.agent")
     def test_send_message_returns_all_messages(self, mock_agent, mock_get_eb, db):
         """send_message 返回 session 中所有消息（含历史）。"""
-        mock_agent.invoke.return_value = {"phase": "confirming"}
+        mock_agent.invoke.return_value = {"phase": "collecting", "messages": [], "response_content": ""}
         from app.models.user import User
         from app.services.auth_service import hash_password
         user = User(username="chatuser3", email="chat3@test.com",
@@ -207,7 +219,7 @@ class TestSendMessage:
     @patch("app.services.chat_service.agent")
     def test_send_message_invalid_session_id(self, mock_agent, mock_get_eb, db):
         """不存在的 session_id 应能重建状态（不抛异常）。"""
-        mock_agent.invoke.return_value = {"phase": "collecting"}
+        mock_agent.invoke.return_value = {"phase": "collecting", "messages": [], "response_content": ""}
         from app.models.user import User
         from app.services.auth_service import hash_password
         user = User(username="chatuser4", email="chat4@test.com",

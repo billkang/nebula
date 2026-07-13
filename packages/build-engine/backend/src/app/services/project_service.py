@@ -10,17 +10,16 @@ from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectResponse
 from app.llm import translate_change_name
 from app.config import settings
+from app.utils.project_path import get_projects_base
 from app.core.logging import biz_stage_start, biz_stage_end, biz_step, setup_project_logging
 
 logger = logging.getLogger(__name__)
-
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 
 class ProjectService:
     @staticmethod
     def _project_dir(username: str, change_name: str) -> Path:
-        return BASE_DIR / "projects" / f"{username}-{change_name}"
+        return get_projects_base() / f"{username}-{change_name}"
 
     @staticmethod
     def list_projects(db: Session, user: User) -> list[ProjectResponse]:

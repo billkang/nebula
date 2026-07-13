@@ -61,8 +61,10 @@ async def test_sse_connection_established(client: TestClient, token: str, db):
     data_str = chunk[6:].strip()
     data = json.loads(data_str)
     assert isinstance(data, list)
-    # No messages sent yet, so list should be empty
-    assert len(data) == 0
+    # 欢迎语在创建 session 时已预存
+    assert len(data) == 1
+    assert data[0]["role"] == "agent"
+    assert data[0]["phase"] == "greeting"
 
     # Clean up — aclose() triggers GeneratorExit in the generator,
     # which calls event_bus.remove(session_id)

@@ -23,7 +23,8 @@ async def lifespan(app: FastAPI):
 
     Base.metadata.create_all(bind=engine)
     # 确保 projects/ 目录存在
-    os.makedirs(os.path.join(os.path.dirname(__file__), "..", "..", "projects"), exist_ok=True)
+    projects_dir = os.path.join(os.path.dirname(__file__), "..", "..", settings.projects_dir)
+    os.makedirs(projects_dir, exist_ok=True)
     # 初始化 EventBus 单例（需在事件循环已运行后）
     init_event_bus()
     logger.info("Nebula API started")
@@ -63,3 +64,19 @@ async def generic_error_handler(request: Request, exc: Exception):
 
 
 app.include_router(api_router, prefix="/api/v1")
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    reload_enabled = os.environ.get("NEBULA_RELOAD", "1") == "1"
+    host = os.environ.get("NEBULA_HOST", "0.0.0.0")
+    port = int(os.environ.get("NEBULA_PORT", "8000"))
+
+    uvicorn.run(
+        "app.main:app",
+        host=host,
+        port=port,
+        reload=reload_enabled,
+        log_level=settings.log_level.lower(),
+    )

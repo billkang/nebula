@@ -6,52 +6,49 @@ from app.config import settings
 from app.services.build_service import BuildService
 from app.services.runtime_client import RuntimeClient
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 MAX_SNAPSHOTS = 10
 
 
 class SandboxService:
 
-    @staticmethod
-    def _project_dir(project_id: str) -> Path:
-        return BASE_DIR / "projects" / project_id
+    # ── 路径工具（所有沙箱操作都基于已解析的 project_dir） ──────────
 
     @staticmethod
-    def _artifact_dir(project_id: str) -> Path:
-        return SandboxService._project_dir(project_id) / "artifacts"
+    def _artifact_dir(project_dir: str) -> Path:
+        return Path(project_dir) / "artifacts"
 
     @staticmethod
-    def _sandbox_dir(project_id: str) -> Path:
-        return SandboxService._project_dir(project_id) / "sandbox"
+    def _sandbox_dir(project_dir: str) -> Path:
+        return Path(project_dir) / "sandbox"
 
     @staticmethod
-    def _snapshots_dir(project_id: str) -> Path:
-        return SandboxService._project_dir(project_id) / "sandbox_snapshots"
+    def _snapshots_dir(project_dir: str) -> Path:
+        return Path(project_dir) / "sandbox_snapshots"
 
     # ── 基础文件操作 ──────────────────────────────────────────
 
     @staticmethod
-    def init_sandbox(project_id: str, artifact_version: str | None = None) -> dict:
+    def init_sandbox(project_dir: str, artifact_version: str | None = None) -> dict:
         """从 Artifact 复制源码到沙箱工作区。
 
         如果 sandbox 目录已存在则跳过复制（保留已有修改）。
         如果指定了 artifact_version，从该版本的 Artifact 复制；
         否则尝试从 artifacts/ 中找最新的版本。
         """
-        sandbox_dir = SandboxService._sandbox_dir(project_id)
+        sandbox_dir = SandboxService._sandbox_dir(project_dir)
 
         # 如果 sandbox 已存在，说明 PM 已经初始化过，直接返回元数据
         if sandbox_dir.exists() and (sandbox_dir / "src").exists():
-            return SandboxService._sandbox_meta(project_id)
+            return SandboxService._sandbox_meta(project_dir)
 
         # 确定来源 Artifact 版本
         if not artifact_version:
-            versions = BuildService.list_artifacts(project_id)
+            versions = BuildService.list_artifacts(project_dir)
             if not versions:
                 raise ValueError("没有可用的 Artifact，请先构建项目")
             artifact_version = versions[-1]["version"]
 
-        artifact_dir = SandboxService._artifact_dir(project_id) / artifact_version
+        artifact_dir = SandboxService._artifact_dir(project_dir) / artifact_version
         if not artifact_dir.exists():
             raise FileNotFoundError(f"Artifact {artifact_version} 不存在")
 
@@ -80,7 +77,7 @@ class SandboxService:
 
         # 写入沙箱元信息
         meta = {
-            "project_id": project_id,
+            "project_dir": project_dir,
             "artifact_version": artifact_version,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "snapshot_count": 0,
@@ -88,12 +85,12 @@ class SandboxService:
         with open(sandbox_dir / "sandbox.json", "w") as f:
             json.dump(meta, f, indent=2)
 
-        return SandboxService._sandbox_meta(project_id)
+        return SandboxService._sandbox_meta(project_dir)
 
     @staticmethod
-    def _sandbox_meta(project_id: str) -> dict:
+    def _sandbox_meta(project_dir: str) -> dict:
         """返回沙箱元数据。"""
-        sandbox_dir = SandboxService._sandbox_dir(project_id)
+        sandbox_dir = SandboxService._sandbox_dir(project_dir)
         meta_path = sandbox_dir / "sandbox.json"
         if not meta_path.exists():
             return {"initialized": False}
@@ -101,26 +98,26 @@ class SandboxService:
             meta = json.load(f)
         meta["initialized"] = True
         meta["file_count"] = SandboxService._count_files(sandbox_dir / "src")
-        meta["modified_file_count"] = SandboxService._count_modified(project_id)
+        meta["modified_file_count"] = SandboxService._count_modified(project_dir)
         return meta
 
     @staticmethod
-    def get_sandbox_files(project_id: str) -> list[dict]:
+    def get_sandbox_files(project_dir: str) -> list[dict]:
         """递归扫描沙箱工作区的文件树。"""
-        sandbox_src = SandboxService._sandbox_dir(project_id) / "src"
+        sandbox_src = SandboxService._sandbox_dir(project_dir) / "src"
         if not sandbox_src.exists():
             return []
-        return SandboxService._build_tree(project_id, sandbox_src)
+        return SandboxService._build_tree(project_dir, sandbox_src)
 
     @staticmethod
-    def _build_tree(project_id: str, path: Path, prefix: str = "") -> list[dict]:
+    def _build_tree(project_dir: str, path: Path, prefix: str = "") -> list[dict]:
         """递归构建文件树，每个节点返回 {name, path, type, children?, modified?}。"""
         items = []
         entries = sorted(path.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
         for entry in entries:
             rel_path = f"{prefix}/{entry.name}" if prefix else entry.name
             if entry.is_dir():
-                children = SandboxService._build_tree(project_id, entry, rel_path)
+                children = SandboxService._build_tree(project_dir, entry, rel_path)
                 items.append({
                     "name": entry.name,
                     "path": rel_path,
@@ -128,7 +125,7 @@ class SandboxService:
                     "children": children,
                 })
             elif entry.is_file() and not entry.name.startswith("."):
-                modified = SandboxService._is_modified(project_id, rel_path)
+                modified = SandboxService._is_modified(project_dir, rel_path)
                 items.append({
                     "name": entry.name,
                     "path": rel_path,
@@ -138,9 +135,9 @@ class SandboxService:
         return items
 
     @staticmethod
-    def get_file_content(project_id: str, file_path: str) -> str:
+    def get_file_content(project_dir: str, file_path: str) -> str:
         """读取沙箱工作区文件内容。"""
-        full_path = SandboxService._sandbox_dir(project_id) / file_path
+        full_path = SandboxService._sandbox_dir(project_dir) / file_path
         if not full_path.exists():
             raise FileNotFoundError(f"文件 {file_path} 不存在")
         if not full_path.is_file():
@@ -153,45 +150,45 @@ class SandboxService:
             raise ValueError(f"文件 {file_path} 不是文本文件")
 
     @staticmethod
-    def save_file(project_id: str, file_path: str, content: str) -> dict:
+    def save_file(project_dir: str, file_path: str, content: str) -> dict:
         """保存文件到沙箱工作区。"""
-        full_path = SandboxService._sandbox_dir(project_id) / file_path
+        full_path = SandboxService._sandbox_dir(project_dir) / file_path
         full_path.parent.mkdir(parents=True, exist_ok=True)
         full_path.write_text(content, encoding="utf-8")
         return {
             "path": file_path,
             "saved": True,
-            "modified": SandboxService._is_modified(project_id, file_path),
+            "modified": SandboxService._is_modified(project_dir, file_path),
         }
 
     # ── 修改状态跟踪 ──────────────────────────────────────────
 
     @staticmethod
-    def _original_path(project_id: str) -> Path | None:
+    def _original_path(project_dir: str) -> Path | None:
         """返回原始 Artifact 的目录路径（不含 src/，如 artifacts/v1/）。"""
-        sandbox_dir = SandboxService._sandbox_dir(project_id)
+        sandbox_dir = SandboxService._sandbox_dir(project_dir)
         meta_path = sandbox_dir / "sandbox.json"
         if not meta_path.exists():
             return None
         with open(meta_path) as f:
             meta = json.load(f)
         version = meta.get("artifact_version", "")
-        art_dir = SandboxService._artifact_dir(project_id) / version
+        art_dir = SandboxService._artifact_dir(project_dir) / version
         return art_dir if art_dir.exists() else None
 
     @staticmethod
-    def _is_modified(project_id: str, rel_path: str) -> bool:
+    def _is_modified(project_dir: str, rel_path: str) -> bool:
         """检查文件相对于原始 Artifact 是否有修改。
         rel_path 相对于 src/ 目录（由 _count_modified 传入）。
         """
-        orig_dir = SandboxService._original_path(project_id)
+        orig_dir = SandboxService._original_path(project_dir)
         if not orig_dir:
             return False
         orig_file = orig_dir / "src" / rel_path
         if not orig_file.exists():
             return True  # 原始不存在 → 新增文件
         # 工作区文件在 sandbox/src/ 下
-        work_file = SandboxService._sandbox_dir(project_id) / "src" / rel_path
+        work_file = SandboxService._sandbox_dir(project_dir) / "src" / rel_path
         if not work_file.exists():
             return False
         try:
@@ -211,29 +208,29 @@ class SandboxService:
         return count
 
     @staticmethod
-    def _count_modified(project_id: str) -> int:
+    def _count_modified(project_dir: str) -> int:
         """统计已修改的文件数量。"""
-        sandbox_src = SandboxService._sandbox_dir(project_id) / "src"
+        sandbox_src = SandboxService._sandbox_dir(project_dir) / "src"
         if not sandbox_src.exists():
             return 0
         count = 0
         for p in sandbox_src.rglob("*"):
             if p.is_file() and not p.name.startswith("."):
                 rel = p.relative_to(sandbox_src)
-                if SandboxService._is_modified(project_id, str(rel)):
+                if SandboxService._is_modified(project_dir, str(rel)):
                     count += 1
         return count
 
     # ── 快照管理 ──────────────────────────────────────────────
 
     @staticmethod
-    def create_snapshot(project_id: str, description: str = "") -> dict:
+    def create_snapshot(project_dir: str, description: str = "") -> dict:
         """创建当前工作区的快照（完整副本）。"""
-        sandbox_dir = SandboxService._sandbox_dir(project_id)
+        sandbox_dir = SandboxService._sandbox_dir(project_dir)
         if not sandbox_dir.exists():
             raise FileNotFoundError("沙箱未初始化，请先调用 init")
 
-        snapshots_dir = SandboxService._snapshots_dir(project_id)
+        snapshots_dir = SandboxService._snapshots_dir(project_dir)
         snapshots_dir.mkdir(parents=True, exist_ok=True)
 
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
@@ -253,14 +250,14 @@ class SandboxService:
             json.dump(meta, f, indent=2)
 
         # 自动清理旧快照
-        SandboxService._cleanup_old_snapshots(project_id)
+        SandboxService._cleanup_old_snapshots(project_dir)
 
         return meta
 
     @staticmethod
-    def get_snapshots(project_id: str) -> list[dict]:
+    def get_snapshots(project_dir: str) -> list[dict]:
         """列出所有快照。"""
-        snapshots_dir = SandboxService._snapshots_dir(project_id)
+        snapshots_dir = SandboxService._snapshots_dir(project_dir)
         if not snapshots_dir.exists():
             return []
 
@@ -280,10 +277,10 @@ class SandboxService:
         return snapshots
 
     @staticmethod
-    def restore_from_snapshot(project_id: str, snapshot_id: str) -> dict:
+    def restore_from_snapshot(project_dir: str, snapshot_id: str) -> dict:
         """从快照恢复工作区。"""
-        sandbox_dir = SandboxService._sandbox_dir(project_id)
-        snapshot_dir = SandboxService._snapshots_dir(project_id) / snapshot_id
+        sandbox_dir = SandboxService._sandbox_dir(project_dir)
+        snapshot_dir = SandboxService._snapshots_dir(project_dir) / snapshot_id
         if not snapshot_dir.exists():
             raise FileNotFoundError(f"快照 {snapshot_id} 不存在")
 
@@ -299,9 +296,9 @@ class SandboxService:
         return meta
 
     @staticmethod
-    def _cleanup_old_snapshots(project_id: str):
+    def _cleanup_old_snapshots(project_dir: str):
         """保留最近 MAX_SNAPSHOTS 个快照，删除更旧的。"""
-        snapshots_dir = SandboxService._snapshots_dir(project_id)
+        snapshots_dir = SandboxService._snapshots_dir(project_dir)
         if not snapshots_dir.exists():
             return
         snapshots = sorted(snapshots_dir.iterdir())
@@ -313,10 +310,10 @@ class SandboxService:
     # ── Diff 计算 ─────────────────────────────────────────────
 
     @staticmethod
-    def get_diff(project_id: str, file_path: str) -> dict:
+    def get_diff(project_dir: str, file_path: str) -> dict:
         """计算文件的修改 diff（当前工作区 vs 原始 Artifact）。"""
-        orig_dir = SandboxService._original_path(project_id)
-        sandbox_dir = SandboxService._sandbox_dir(project_id)
+        orig_dir = SandboxService._original_path(project_dir)
+        sandbox_dir = SandboxService._sandbox_dir(project_dir)
 
         work_file = sandbox_dir / file_path
         if not work_file.exists():
@@ -360,9 +357,9 @@ class SandboxService:
         }
 
     @staticmethod
-    def get_original_content(project_id: str, file_path: str) -> str:
+    def get_original_content(project_dir: str, file_path: str) -> str:
         """从原始 Artifact 读取文件的基线版本。"""
-        orig_dir = SandboxService._original_path(project_id)
+        orig_dir = SandboxService._original_path(project_dir)
         if not orig_dir:
             return ""
         orig_file = orig_dir / file_path
@@ -376,13 +373,13 @@ class SandboxService:
     # ── 恢复原始 ──────────────────────────────────────────────
 
     @staticmethod
-    def restore_original(project_id: str, file_path: str | None = None) -> dict:
+    def restore_original(project_dir: str, file_path: str | None = None) -> dict:
         """从原始 Artifact 恢复文件到沙箱。
 
         如果指定了 file_path，只恢复该文件；
         否则恢复整个沙箱工作区（清空 src/ 后重新从 Artifact 复制）。
         """
-        sandbox_dir = SandboxService._sandbox_dir(project_id)
+        sandbox_dir = SandboxService._sandbox_dir(project_dir)
         if not sandbox_dir.exists():
             raise FileNotFoundError("沙箱未初始化，请先调用 init")
 
@@ -392,12 +389,12 @@ class SandboxService:
             if not full_path.exists():
                 raise FileNotFoundError(f"文件 {file_path} 不存在于工作区")
 
-            orig_content = SandboxService.get_original_content(project_id, file_path)
+            orig_content = SandboxService.get_original_content(project_dir, file_path)
             full_path.write_text(orig_content, encoding="utf-8")
             return {"path": file_path, "restored": True}
 
         # 恢复全部：重新从 Artifact 复制 src/
-        orig_dir = SandboxService._original_path(project_id)
+        orig_dir = SandboxService._original_path(project_dir)
         if not orig_dir:
             raise FileNotFoundError("找不到原始 Artifact，无法恢复")
 
@@ -428,7 +425,8 @@ class SandboxService:
     # ── 重建触发 ──────────────────────────────────────────────
 
     @staticmethod
-    def trigger_rebuild(project_id: str, description: str = "", async_build: bool = False) -> dict:
+    def trigger_rebuild(project_id: str, project_dir: str,
+                        description: str = "", async_build: bool = False) -> dict:
         """触发重建流程：
         1. 创建快照
         2. 调用 BuildService 从沙箱目录构建
@@ -438,13 +436,15 @@ class SandboxService:
         否则同步等待构建完成。
         """
         # 1. 创建自动快照
-        snapshot = SandboxService.create_snapshot(project_id, description or "重建前自动快照")
+        snapshot = SandboxService.create_snapshot(project_dir, description or "重建前自动快照")
 
-        sandbox_dir = SandboxService._sandbox_dir(project_id)
+        sandbox_dir = SandboxService._sandbox_dir(project_dir)
 
         if async_build:
             # 异步构建：后台线程运行，前端轮询状态
-            build_result = BuildService.start_async_build(project_id)
+            build_result = BuildService.start_async_build(
+                project_id, project_dir, source_dir=str(sandbox_dir),
+            )
             result = {
                 "status": build_result.get("status", "started"),
                 "message": build_result.get("message", "构建已启动"),
@@ -454,7 +454,7 @@ class SandboxService:
             return result
 
         # 2. 同步构建：等待完成
-        result = BuildService().build(project_id, source_dir=str(sandbox_dir))
+        result = BuildService().build(project_id, project_dir, source_dir=str(sandbox_dir))
 
         # 3. 更新沙箱元数据的 artifact_version
         if result.get("status") == "success":

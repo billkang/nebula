@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import subprocess
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from typing import Any, Optional
 
 import docker
@@ -59,10 +60,21 @@ class DockerCoderBackend(CoderBackend):
         prompt_text = self._build_coding_prompt(spec, skill)
 
         try:
-            exit_code, output = container.exec_run(
-                cmd=["claude", "code", "--prompt", prompt_text, "--print"],
-                workdir="/workspace",
-                timeout=timeout,
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    container.exec_run,
+                    cmd=["claude", "code", "--prompt", prompt_text, "--print"],
+                    workdir="/workspace",
+                )
+                exit_code, output = future.result(timeout=timeout)
+        except TimeoutError:
+            self._cleanup_container(container.id)
+            logger.warning("Coding execution timed out after %ds", timeout)
+            return CodingResult(
+                status="failed",
+                source_dir=str(project_dir),
+                message=f"Coding execution timed out after {timeout}s",
+                error="Timeout",
             )
         except Exception as e:
             self._cleanup_container(container.id)
@@ -108,19 +120,29 @@ class DockerCoderBackend(CoderBackend):
             environment["VERSION"] = version
 
         try:
-            output = self.client.containers.run(
-                image=settings.builder_image,
-                volumes=volumes,
-                environment=environment,
-                cpu_count=settings.builder_cpu_limit,
-                mem_limit=settings.builder_memory_limit,
-                # Security: builder needs outbound network for `pip install -r requirements.txt`
-                # from PyPI. For stricter isolation, use private PyPI mirror or pre-install all
-                # dependencies in the builder image.
-                detach=False,
-                remove=True,
-            )
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    self.client.containers.run,
+                    image=settings.builder_image,
+                    volumes=volumes,
+                    environment=environment,
+                    cpu_count=settings.builder_cpu_limit,
+                    mem_limit=settings.builder_memory_limit,
+                    # Security: builder needs outbound network for `pip install -r requirements.txt`
+                    # from PyPI. For stricter isolation, use private PyPI mirror or pre-install all
+                    # dependencies in the builder image.
+                    detach=False,
+                    remove=True,
+                )
+                output = future.result(timeout=timeout)
             exit_code = 0
+        except TimeoutError:
+            logger.warning("Build timed out after %ds", timeout)
+            return BuildResult(
+                status="failed",
+                message=f"Build timed out after {timeout}s",
+                error="Timeout",
+            )
         except DockerException as e:
             logger.error("Build container failed: %s", e)
             return BuildResult(

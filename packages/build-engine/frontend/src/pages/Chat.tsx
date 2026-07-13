@@ -56,6 +56,21 @@ export default function Chat() {
       if (!id || !sessionId) return Promise.reject(new Error('未就绪'));
       return api.sessions.send(id, sessionId, c);
     },
+    onMutate: async (c) => {
+      // 乐观更新：立即显示用户消息，不等 API 返回
+      const optimisticMsg = {
+        id: `optimistic-${Date.now()}-${c.length}`,
+        role: 'user' as const,
+        content: c,
+        created_at: new Date().toISOString(),
+        phase: undefined,
+      };
+      setMessages((prev) => [...prev, optimisticMsg]);
+    },
+    onError: (_err, _c, _ctx) => {
+      // 请求失败时移除乐观消息，还原到上一次服务端确认的状态
+      setMessages((prev) => prev.filter((m) => !m.id.startsWith('optimistic-')));
+    },
     onSuccess: (msgs) => {
       setMessages(msgs); // 直接从 POST 响应更新消息，避免 SSE 延迟/丢失导致 UI 空白
       const last = msgs[msgs.length - 1];

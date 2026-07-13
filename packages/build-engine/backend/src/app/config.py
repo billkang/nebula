@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_dir: str = "./logs"
 
+    # Projects directory (relative to backend/)
+    projects_dir: str = "projects"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "populate_by_name": True}
 
 

@@ -7,6 +7,10 @@ def register_backend(name: str, backend_cls: type[CoderBackend]) -> None:
     _registry[name] = backend_cls
 
 
+# Import backends so their register_backend() calls execute at import time
+import app.services.backends.docker_backend  # noqa: F401
+
+
 def get_backend(name: str) -> type[CoderBackend]:
     if name not in _registry:
         raise ValueError(f"Unknown backend: {name}")

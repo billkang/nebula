@@ -7,14 +7,18 @@ import pytest
 
 from app.services.sandbox_service import SandboxService
 from app.services.build_service import BuildService
+from app.utils.project_path import get_projects_base
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+
+def _project_dir(project_id: str) -> str:
+    """Helper: return the canonical filesystem path for a test project."""
+    return str(get_projects_base() / project_id)
 
 
 @pytest.fixture(autouse=True)
 def clean_sandbox_and_artifacts():
     """每次测试前清理 sandbox 和 artifacts 目录。"""
-    projects_dir = BASE_DIR / "projects"
+    projects_dir = get_projects_base()
     if projects_dir.exists():
         for proj_dir in projects_dir.iterdir():
             if proj_dir.is_dir():
@@ -28,7 +32,8 @@ def clean_sandbox_and_artifacts():
 
 def _create_test_artifact(project_id: str, version: str = "v1"):
     """创建一个测试用的 Artifact。"""
-    artifact_dir = BASE_DIR / "projects" / project_id / "artifacts" / version
+    project_dir = get_projects_base() / project_id
+    artifact_dir = project_dir / "artifacts" / version
     src_dir = artifact_dir / "src"
     src_dir.mkdir(parents=True, exist_ok=True)
 
@@ -60,11 +65,12 @@ class TestInitSandbox:
         """init_sandbox 从 Artifact 复制源码到沙箱工作区。"""
         project_id = "test-init"
         _create_test_artifact(project_id)
-        result = SandboxService.init_sandbox(project_id)
+        pd = _project_dir(project_id)
+        result = SandboxService.init_sandbox(pd)
 
         assert result["initialized"] is True
         assert result["file_count"] == 3  # main.py, utils.py, models/user.py
-        sandbox_dir = BASE_DIR / "projects" / project_id / "sandbox"
+        sandbox_dir = Path(pd) / "sandbox"
         assert (sandbox_dir / "src" / "main.py").exists()
         assert (sandbox_dir / "src" / "utils.py").exists()
         assert (sandbox_dir / "src" / "models" / "user.py").exists()
@@ -77,11 +83,12 @@ class TestInitSandbox:
         _create_test_artifact(project_id, "v1")
         _create_test_artifact(project_id, "v2")
         # 修改 v2 的 main.py
-        v2_src = BASE_DIR / "projects" / project_id / "artifacts" / "v2" / "src"
+        pd = _project_dir(project_id)
+        v2_src = Path(pd) / "artifacts" / "v2" / "src"
         (v2_src / "main.py").write_text("print('v2')\n", encoding="utf-8")
 
-        result = SandboxService.init_sandbox(project_id, "v1")
-        sandbox_dir = BASE_DIR / "projects" / project_id / "sandbox"
+        result = SandboxService.init_sandbox(pd, "v1")
+        sandbox_dir = Path(pd) / "sandbox"
         content = (sandbox_dir / "src" / "main.py").read_text()
         assert "hello" in content  # v1 的内容
 
@@ -89,22 +96,24 @@ class TestInitSandbox:
         """已初始化的沙箱再次 init 不会覆盖已有修改。"""
         project_id = "test-idempotent"
         _create_test_artifact(project_id)
+        pd = _project_dir(project_id)
 
         # 第一次初始化
-        SandboxService.init_sandbox(project_id)
-        sandbox_dir = BASE_DIR / "projects" / project_id / "sandbox"
+        SandboxService.init_sandbox(pd)
+        sandbox_dir = Path(pd) / "sandbox"
 
         # 修改文件
         (sandbox_dir / "src" / "main.py").write_text("# modified\n", encoding="utf-8")
 
         # 第二次 init 应保留修改
-        SandboxService.init_sandbox(project_id)
+        SandboxService.init_sandbox(pd)
         assert (sandbox_dir / "src" / "main.py").read_text() == "# modified\n"
 
     def test_init_sandbox_no_artifact(self):
         """没有 Artifact 时抛出 ValueError。"""
+        pd = _project_dir("nonexistent-project")
         with pytest.raises(ValueError, match="没有可用的 Artifact"):
-            SandboxService.init_sandbox("nonexistent-project")
+            SandboxService.init_sandbox(pd)
 
 
 class TestGetSandboxFiles:
@@ -112,9 +121,10 @@ class TestGetSandboxFiles:
         """文件树返回所有文件。"""
         project_id = "test-tree"
         _create_test_artifact(project_id)
-        SandboxService.init_sandbox(project_id)
+        pd = _project_dir(project_id)
+        SandboxService.init_sandbox(pd)
 
-        files = SandboxService.get_sandbox_files(project_id)
+        files = SandboxService.get_sandbox_files(pd)
         assert len(files) > 0
 
         # 找到 src/main.py
@@ -128,7 +138,7 @@ class TestGetSandboxFiles:
 
     def test_get_sandbox_files_not_initialized(self):
         """未初始化时返回空列表。"""
-        files = SandboxService.get_sandbox_files("no-init")
+        files = SandboxService.get_sandbox_files(_project_dir("no-init"))
         assert files == []
 
 
@@ -137,28 +147,31 @@ class TestFileContent:
         """读取工作区文件内容。"""
         project_id = "test-read"
         _create_test_artifact(project_id)
-        SandboxService.init_sandbox(project_id)
+        pd = _project_dir(project_id)
+        SandboxService.init_sandbox(pd)
 
-        content = SandboxService.get_file_content(project_id, "src/main.py")
+        content = SandboxService.get_file_content(pd, "src/main.py")
         assert "print" in content
 
     def test_get_file_nonexistent(self):
         """读取不存在的文件抛出 FileNotFoundError。"""
         project_id = "test-read-none"
         _create_test_artifact(project_id)
-        SandboxService.init_sandbox(project_id)
+        pd = _project_dir(project_id)
+        SandboxService.init_sandbox(pd)
 
         with pytest.raises(FileNotFoundError):
-            SandboxService.get_file_content(project_id, "src/nonexistent.py")
+            SandboxService.get_file_content(pd, "src/nonexistent.py")
 
     def test_save_file(self):
         """保存文件到工作区。"""
         project_id = "test-save"
         _create_test_artifact(project_id)
-        SandboxService.init_sandbox(project_id)
+        pd = _project_dir(project_id)
+        SandboxService.init_sandbox(pd)
 
-        SandboxService.save_file(project_id, "src/main.py", "# modified content\n")
-        content = SandboxService.get_file_content(project_id, "src/main.py")
+        SandboxService.save_file(pd, "src/main.py", "# modified content\n")
+        content = SandboxService.get_file_content(pd, "src/main.py")
         assert content == "# modified content\n"
 
 
@@ -167,25 +180,27 @@ class TestDiffAndModifications:
         """修改文件后 is_modified 返回 True。"""
         project_id = "test-diff"
         _create_test_artifact(project_id)
-        SandboxService.init_sandbox(project_id)
+        pd = _project_dir(project_id)
+        SandboxService.init_sandbox(pd)
 
         # 初始不应有修改
-        assert SandboxService._count_modified(project_id) == 0
+        assert SandboxService._count_modified(pd) == 0
 
         # 修改文件
-        SandboxService.save_file(project_id, "src/main.py", "# changed\n")
-        assert SandboxService._count_modified(project_id) == 1
+        SandboxService.save_file(pd, "src/main.py", "# changed\n")
+        assert SandboxService._count_modified(pd) == 1
 
     def test_get_diff_shows_changes(self):
         """get_diff 返回行级别的修改。"""
         project_id = "test-diff-show"
         _create_test_artifact(project_id)
-        SandboxService.init_sandbox(project_id)
+        pd = _project_dir(project_id)
+        SandboxService.init_sandbox(pd)
 
-        SandboxService.save_file(project_id, "src/main.py",
+        SandboxService.save_file(pd, "src/main.py",
                                   "print('modified')\nprint('new line')\n")
 
-        diff = SandboxService.get_diff(project_id, "src/main.py")
+        diff = SandboxService.get_diff(pd, "src/main.py")
         assert diff["has_diff"] is True
         assert diff["additions"] >= 1
         assert "summary" in diff
@@ -194,9 +209,10 @@ class TestDiffAndModifications:
         """未修改的文件 diff 显示无修改。"""
         project_id = "test-diff-none"
         _create_test_artifact(project_id)
-        SandboxService.init_sandbox(project_id)
+        pd = _project_dir(project_id)
+        SandboxService.init_sandbox(pd)
 
-        diff = SandboxService.get_diff(project_id, "src/main.py")
+        diff = SandboxService.get_diff(pd, "src/main.py")
         assert diff["has_diff"] is False
 
 
@@ -205,13 +221,14 @@ class TestSnapshots:
         """创建快照保存当前工作区状态。"""
         project_id = "test-snap"
         _create_test_artifact(project_id)
-        SandboxService.init_sandbox(project_id)
+        pd = _project_dir(project_id)
+        SandboxService.init_sandbox(pd)
 
         # 修改并保存
-        SandboxService.save_file(project_id, "src/main.py", "# snapshot test\n")
+        SandboxService.save_file(pd, "src/main.py", "# snapshot test\n")
 
         # 创建快照
-        snap = SandboxService.create_snapshot(project_id, "测试快照")
+        snap = SandboxService.create_snapshot(pd, "测试快照")
         assert snap["snapshot_id"] is not None
         assert snap["description"] == "测试快照"
 
@@ -219,33 +236,35 @@ class TestSnapshots:
         """从快照恢复工作区。"""
         project_id = "test-restore"
         _create_test_artifact(project_id)
-        SandboxService.init_sandbox(project_id)
+        pd = _project_dir(project_id)
+        SandboxService.init_sandbox(pd)
 
         # 修改并保存
-        SandboxService.save_file(project_id, "src/main.py", "# modified\n")
+        SandboxService.save_file(pd, "src/main.py", "# modified\n")
 
         # 创建快照
-        snap = SandboxService.create_snapshot(project_id, "修改后")
+        snap = SandboxService.create_snapshot(pd, "修改后")
 
         # 再次修改
-        SandboxService.save_file(project_id, "src/main.py", "# further modified\n")
+        SandboxService.save_file(pd, "src/main.py", "# further modified\n")
 
         # 从快照恢复
-        SandboxService.restore_from_snapshot(project_id, snap["snapshot_id"])
+        SandboxService.restore_from_snapshot(pd, snap["snapshot_id"])
 
-        content = SandboxService.get_file_content(project_id, "src/main.py")
+        content = SandboxService.get_file_content(pd, "src/main.py")
         assert content == "# modified\n"
 
     def test_get_snapshots(self):
         """get_snapshots 列出所有快照。"""
         project_id = "test-list-snaps"
         _create_test_artifact(project_id)
-        SandboxService.init_sandbox(project_id)
+        pd = _project_dir(project_id)
+        SandboxService.init_sandbox(pd)
 
-        SandboxService.create_snapshot(project_id, "快照1")
-        SandboxService.create_snapshot(project_id, "快照2")
+        SandboxService.create_snapshot(pd, "快照1")
+        SandboxService.create_snapshot(pd, "快照2")
 
-        snaps = SandboxService.get_snapshots(project_id)
+        snaps = SandboxService.get_snapshots(pd)
         assert len(snaps) == 2
 
 
@@ -254,31 +273,33 @@ class TestRestoreOriginal:
         """恢复单个文件到原始 Artifact 版本。"""
         project_id = "test-restore-single"
         _create_test_artifact(project_id)
-        SandboxService.init_sandbox(project_id)
+        pd = _project_dir(project_id)
+        SandboxService.init_sandbox(pd)
 
         # 修改文件
-        SandboxService.save_file(project_id, "src/main.py", "# modified\n")
-        assert "modified" in SandboxService.get_file_content(project_id, "src/main.py")
+        SandboxService.save_file(pd, "src/main.py", "# modified\n")
+        assert "modified" in SandboxService.get_file_content(pd, "src/main.py")
 
         # 恢复单个文件
-        SandboxService.restore_original(project_id, "src/main.py")
-        content = SandboxService.get_file_content(project_id, "src/main.py")
+        SandboxService.restore_original(pd, "src/main.py")
+        content = SandboxService.get_file_content(pd, "src/main.py")
         assert "hello" in content  # 回到原始内容
 
     def test_restore_original_all_files(self):
         """恢复全部文件到原始 Artifact 版本。"""
         project_id = "test-restore-all"
         _create_test_artifact(project_id)
-        SandboxService.init_sandbox(project_id)
+        pd = _project_dir(project_id)
+        SandboxService.init_sandbox(pd)
 
         # 修改多个文件
-        SandboxService.save_file(project_id, "src/main.py", "# modified\n")
-        SandboxService.save_file(project_id, "src/utils.py", "# modified utils\n")
+        SandboxService.save_file(pd, "src/main.py", "# modified\n")
+        SandboxService.save_file(pd, "src/utils.py", "# modified utils\n")
 
         # 恢复全部
-        SandboxService.restore_original(project_id)
-        main_content = SandboxService.get_file_content(project_id, "src/main.py")
-        utils_content = SandboxService.get_file_content(project_id, "src/utils.py")
+        SandboxService.restore_original(pd)
+        main_content = SandboxService.get_file_content(pd, "src/main.py")
+        utils_content = SandboxService.get_file_content(pd, "src/utils.py")
         assert "hello" in main_content
         assert "def helper" in utils_content
 
@@ -294,7 +315,8 @@ class TestRebuild:
         """trigger_rebuild 会自动创建快照。"""
         project_id = "test-rebuild"
         # 创建足够的 Artifact 文件结构以便测试通过
-        project_dir = BASE_DIR / "projects" / project_id
+        pd = _project_dir(project_id)
+        project_dir = Path(pd)
         project_dir.mkdir(parents=True, exist_ok=True)
         (project_dir / "src").mkdir(parents=True, exist_ok=True)
         (project_dir / "src" / "main.py").write_text("print('hello')\n", encoding="utf-8")
@@ -302,26 +324,27 @@ class TestRebuild:
         (project_dir / "Dockerfile").write_text("FROM python:3.12-slim\n", encoding="utf-8")
 
         _create_test_artifact(project_id)
-        SandboxService.init_sandbox(project_id)
+        SandboxService.init_sandbox(pd)
 
         # 修改文件
-        SandboxService.save_file(project_id, "src/main.py", "# rebuild test\n")
+        SandboxService.save_file(pd, "src/main.py", "# rebuild test\n")
 
         # 触发重建
-        result = SandboxService.trigger_rebuild(project_id, "测试重建")
+        result = SandboxService.trigger_rebuild(project_id, pd, "测试重建")
 
         # 应创建了快照
         assert "snapshot_id" in result
-        snaps = SandboxService.get_snapshots(project_id)
+        snaps = SandboxService.get_snapshots(pd)
         assert len(snaps) >= 1
 
         # 清理
-        shutil.rmtree(project_dir)
+        shutil.rmtree(pd)
 
     def test_rebuild_works_without_modification(self):
         """没有修改时重建也应该正常进行（含测试）。"""
         project_id = "test-rebuild-no-change"
-        project_dir = BASE_DIR / "projects" / project_id
+        pd = _project_dir(project_id)
+        project_dir = Path(pd)
         project_dir.mkdir(parents=True, exist_ok=True)
         (project_dir / "src").mkdir(parents=True, exist_ok=True)
         (project_dir / "src" / "main.py").write_text("print('test')\n", encoding="utf-8")
@@ -336,10 +359,10 @@ class TestRebuild:
         (project_dir / "Dockerfile").write_text("FROM python:3.12-slim\n", encoding="utf-8")
 
         _create_test_artifact(project_id)
-        SandboxService.init_sandbox(project_id)
+        SandboxService.init_sandbox(pd)
 
         # 在沙箱中添加测试文件，让构建管道的 pytest 能通过
-        sandbox_dir = BASE_DIR / "projects" / project_id / "sandbox"
+        sandbox_dir = project_dir / "sandbox"
         test_dir = sandbox_dir / "tests"
         test_dir.mkdir(exist_ok=True)
         (test_dir / "__init__.py").write_text("", encoding="utf-8")
@@ -356,11 +379,11 @@ class TestRebuild:
             message="mock build completed",
         )
         with patch("app.services.build_service.create_backend", return_value=mock_backend):
-            result = SandboxService.trigger_rebuild(project_id)
+            result = SandboxService.trigger_rebuild(project_id, pd)
         assert "snapshot_id" in result
         assert result.get("status") == "success" or result.get("status") == "testing"
 
-        shutil.rmtree(project_dir)
+        shutil.rmtree(pd)
 
 
 def _flatten_paths(files: list[dict]) -> list[str]:

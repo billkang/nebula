@@ -1,12 +1,9 @@
-from pathlib import Path
 from typing import Optional
 
 import docker
 
 from app.services.coder_backend import CoderBackend
 from app.services.backends import create_backend
-
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 _exec_states: dict[str, dict] = {}
 
@@ -35,16 +32,13 @@ class ExecutorService:
         st = ExecutorService._state(project_id)
         return {"status": st["status"], "message": st["message"]}
 
-    def execute(self, project_id: str) -> dict:
+    def execute(self, project_id: str, project_dir: str) -> dict:
         st = ExecutorService._state(project_id)
         available, msg = ExecutorService.check_prerequisites()
         if not available:
             st["status"] = "failed"
             st["message"] = msg
             return ExecutorService.get_status(project_id)
-
-        project_dir = BASE_DIR / "projects" / project_id
-        project_dir.mkdir(parents=True, exist_ok=True)
 
         st["status"] = "running"
         st["message"] = "编码执行中（Docker 容器）..."
@@ -53,7 +47,7 @@ class ExecutorService:
             result = self._backend.execute_coding(
                 spec={},
                 skill=None,
-                project_dir=str(project_dir),
+                project_dir=project_dir,
             )
             st["status"] = result.status
             st["message"] = result.message

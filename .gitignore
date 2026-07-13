@@ -49,3 +49,4 @@ packages/build-engine/backend/logs/
 .requirements.hash
 logs/
 packages/build-engine/frontend/logs/
+projects_test/

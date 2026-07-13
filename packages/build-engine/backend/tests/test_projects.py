@@ -1,6 +1,7 @@
 def test_create_project(client, db):
     from unittest.mock import patch
     from app.models.user import User, UserRole
+    from app.utils.project_path import get_projects_base
     from app.services.auth_service import hash_password
     user = User(username="projuser", email="proj@test.com",
                 password=hash_password("pass123"), role=UserRole.ADMIN)
@@ -76,6 +77,7 @@ def test_create_project_returns_change_name(client, db):
 
 def test_create_project_has_openspec_workspace(client, db):
     """创建项目后，项目目录中有 openspec 工作区结构。"""
+    from app.utils.project_path import get_projects_base
     from pathlib import Path
     from app.models.user import User, UserRole
     from app.services.auth_service import hash_password
@@ -93,7 +95,7 @@ def test_create_project_has_openspec_workspace(client, db):
     assert resp.status_code == 200
 
     # 验证项目目录和 openspec 工作区结构
-    project_dir = Path(__file__).resolve().parent.parent / "projects" / "specuser-spec-test"
+    project_dir = get_projects_base() / "specuser-spec-test"
     assert project_dir.exists()
     assert (project_dir / "openspec").exists(), "缺少 openspec/ 目录"
     assert (project_dir / "openspec" / "changes").exists(), "缺少 openspec/changes/"
@@ -103,6 +105,7 @@ def test_create_project_has_openspec_workspace(client, db):
 
 def test_delete_project_removes_directory(client, db):
     """删除项目时清理文件系统目录。"""
+    from app.utils.project_path import get_projects_base
     from pathlib import Path
     from app.models.user import User, UserRole
     from app.services.auth_service import hash_password
@@ -120,7 +123,7 @@ def test_delete_project_removes_directory(client, db):
     assert create.status_code == 200
     pid = create.json()["id"]
 
-    project_dir = Path(__file__).resolve().parent.parent / "projects" / "deluser2-del-test"
+    project_dir = get_projects_base() / "deluser2-del-test"
     assert project_dir.exists(), "项目目录应在删除前存在"
 
     resp = client.delete(f"/api/v1/projects/{pid}",
@@ -133,6 +136,7 @@ def test_delete_project_removes_directory(client, db):
 
 def test_delete_project_missing_directory_succeeds(client, db):
     """删除项目时如果目录已不存在，不应阻塞 DB 删除。"""
+    from app.utils.project_path import get_projects_base
     from pathlib import Path
     from app.models.user import User, UserRole
     from app.services.auth_service import hash_password
@@ -151,7 +155,7 @@ def test_delete_project_missing_directory_succeeds(client, db):
     pid = create.json()["id"]
 
     # 手动删除目录
-    project_dir = Path(__file__).resolve().parent.parent / "projects" / "deluser3-del-missing"
+    project_dir = get_projects_base() / "deluser3-del-missing"
     import shutil
     shutil.rmtree(project_dir, ignore_errors=True)
     assert not project_dir.exists(), "测试前提：目录已被手动删除"

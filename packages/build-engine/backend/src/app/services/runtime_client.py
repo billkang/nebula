@@ -7,8 +7,7 @@ from typing import Optional
 import httpx
 
 from app.config import settings
-
-BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+from app.utils.project_path import get_projects_base
 
 
 class RuntimeClientError(Exception):
@@ -37,7 +36,7 @@ class RuntimeClient:
         Reads from projects/<project-id>/artifacts/<version>/ and sends it
         to the runtime's registry endpoint.
         """
-        artifact_dir = BASE_DIR / "projects" / project_id / "artifacts" / version
+        artifact_dir = get_projects_base() / project_id / "artifacts" / version
         if not artifact_dir.exists():
             raise RuntimeClientError(f"Artifact directory not found: {artifact_dir}")
 

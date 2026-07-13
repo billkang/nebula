@@ -5,19 +5,21 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from app.services.build_service import BuildService
-
-BASE_DIR = Path(__file__).resolve().parent.parent
+from app.utils.project_path import get_projects_base
 
 
 def _setup_project_with_artifact(client: TestClient, headers: dict, project_name: str):
-    """创建项目并准备一个 Artifact。"""
-    # 创建项目
+    """创建项目并在正确的项目文件系统路径下准备 Artifact。"""
+    # 创建项目（ProjectService 会创建 projects/{username}-{change_name}/ 目录）
     resp = client.post("/api/v1/projects", json={"name": project_name}, headers=headers)
     assert resp.status_code == 200
     pid = resp.json()["id"]
+    change_name = resp.json()["change_name"]
 
-    # 手动创建项目文件结构（模拟构建完成的状态）
-    project_dir = BASE_DIR / "projects" / str(pid)
+    # 计算项目文件系统的正确路径
+    project_dir = get_projects_base() / f"sandbox_user-{change_name}"
+    project_dir.mkdir(parents=True, exist_ok=True)
+
     (project_dir / "src").mkdir(parents=True, exist_ok=True)
     (project_dir / "src" / "main.py").write_text(
         "print('hello from sandbox test')\n", encoding="utf-8"
@@ -35,13 +37,13 @@ def _setup_project_with_artifact(client: TestClient, headers: dict, project_name
     (project_dir / "Dockerfile").write_text("FROM python:3.12-slim\n", encoding="utf-8")
 
     # 生成一个 Artifact（手动创建，不依赖 BuildService Docker backend）
-    import tarfile, json
+    import tarfile
     from datetime import datetime, timezone
-    artifact_version = "v1"
 
     from app.services.build_service import _build_states
     _build_states.clear()
 
+    artifact_version = "v1"
     artifact_dir = project_dir / "artifacts" / artifact_version
     artifact_dir.mkdir(parents=True, exist_ok=True)
 
@@ -77,7 +79,7 @@ class TestSandboxAPI:
     def cleanup(self):
         """测试后清理。"""
         yield
-        projects_dir = BASE_DIR / "projects"
+        projects_dir = get_projects_base()
         if projects_dir.exists():
             for proj in projects_dir.iterdir():
                 if proj.is_dir():
@@ -110,7 +112,7 @@ class TestSandboxAPI:
         pid, version = _setup_project_with_artifact(client, headers, "Sandbox Init Test")
 
         resp = client.post(f"/api/v1/projects/{pid}/sandbox/init", headers=headers)
-        assert resp.status_code == 200
+        assert resp.status_code == 200, f"init 失败: {resp.text}"
         data = resp.json()["data"]
         assert data["initialized"] is True
 

@@ -1,15 +1,20 @@
 from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from app.database import get_db
 from app.middleware.auth import get_current_user
 from app.models.user import User
 from app.services.build_service import BuildService
 from app.services.runtime_client import RuntimeClient
+from app.utils.project_path import resolve_project_dir
 
 build_router = APIRouter(prefix="/projects/{project_id}/build", tags=["build"])
 
 
 @build_router.post("")
-def trigger_build(project_id: str, user: User = Depends(get_current_user)):
-    return BuildService().build(project_id)
+def trigger_build(project_id: str, db: Session = Depends(get_db),
+                  user: User = Depends(get_current_user)):
+    project_dir = resolve_project_dir(project_id, db)
+    return BuildService().build(project_id, project_dir)
 
 
 @build_router.get("/status")
@@ -22,8 +27,10 @@ def build_status(project_id: str, user: User = Depends(get_current_user)):
 
 
 @build_router.get("/artifacts")
-def list_artifacts(project_id: str, user: User = Depends(get_current_user)):
-    return BuildService.list_artifacts(project_id)
+def list_artifacts(project_id: str, db: Session = Depends(get_db),
+                   user: User = Depends(get_current_user)):
+    project_dir = resolve_project_dir(project_id, db)
+    return BuildService.list_artifacts(project_dir)
 
 
 @build_router.post("/deploy")

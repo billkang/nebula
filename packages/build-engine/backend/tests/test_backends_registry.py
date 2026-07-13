@@ -11,6 +11,20 @@ class FakeBackend(CoderBackend):
         return BuildResult(status="success", message="fake")
 
 
+@pytest.fixture(autouse=True)
+def _isolate_registry():
+    """Save and restore the global backends registry around each test.
+
+    Prevents registry mutations from leaking to other test files
+    (e.g. clearing "docker" that subsequent sandbox rebuild tests rely on).
+    """
+    from app.services.backends import _registry
+    saved = dict(_registry)
+    yield
+    _registry.clear()
+    _registry.update(saved)
+
+
 def _clean_registry():
     """Helper to clean the global registry for test isolation."""
     from app.services.backends import _registry

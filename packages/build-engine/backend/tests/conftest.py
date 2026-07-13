@@ -13,6 +13,9 @@ from app.config import settings
 settings.llm_api_key = "sk-test-key-for-testing"
 settings.llm_provider = "deepseek"
 
+# 测试项目目录与正式 projects/ 隔离，互不影响
+settings.projects_dir = "projects_test"
+
 
 @pytest.fixture(autouse=True)
 def _mock_translate_change_name():
@@ -22,15 +25,17 @@ def _mock_translate_change_name():
                return_value="test-project"):
         yield
 
+
 @pytest.fixture(autouse=True)
-def _cleanup_projects_dir(request):
-    """每次测试完成后清理 projects/ 下的测试目录。"""
+def _cleanup_projects_dir():
+    """每次测试完成后清理 projects_test/ 目录，不影响正式 projects/。"""
+    projects_dir = Path(__file__).parent.parent / settings.projects_dir
+    before = {p.name for p in projects_dir.iterdir()} if projects_dir.exists() else set()
     yield
-    projects_dir = Path(__file__).parent.parent / "projects"
     if projects_dir.exists():
         import shutil
-        for item in projects_dir.iterdir():
-            if item.is_dir():
+        for item in list(projects_dir.iterdir()):
+            if item.is_dir() and item.name not in before:
                 shutil.rmtree(item, ignore_errors=True)
 
 

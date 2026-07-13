@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from app.database import get_db
 from app.middleware.auth import get_current_user
 from app.models.user import User
 from app.services.sandbox_service import SandboxService
+from app.utils.project_path import ensure_project_dir, resolve_project_dir
 
 sandbox_router = APIRouter(prefix="/projects/{project_id}/sandbox", tags=["sandbox"])
 
@@ -10,11 +13,13 @@ sandbox_router = APIRouter(prefix="/projects/{project_id}/sandbox", tags=["sandb
 def init_sandbox(
     project_id: str,
     artifact_version: str | None = None,
+    db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """初始化沙箱：从 Artifact 复制源码到沙箱工作区。"""
     try:
-        result = SandboxService.init_sandbox(project_id, artifact_version)
+        project_dir = ensure_project_dir(project_id, db)
+        result = SandboxService.init_sandbox(project_dir, artifact_version)
         return {"data": result, "error": None}
     except (ValueError, FileNotFoundError) as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -23,11 +28,13 @@ def init_sandbox(
 @sandbox_router.get("/files")
 def get_sandbox_files(
     project_id: str,
+    db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """获取沙箱工作区文件树。"""
-    files = SandboxService.get_sandbox_files(project_id)
-    meta = SandboxService._sandbox_meta(project_id)
+    project_dir = resolve_project_dir(project_id, db)
+    files = SandboxService.get_sandbox_files(project_dir)
+    meta = SandboxService._sandbox_meta(project_dir)
     return {"data": {"files": files, "meta": meta}, "error": None}
 
 
@@ -35,11 +42,13 @@ def get_sandbox_files(
 def get_file(
     project_id: str,
     file_path: str,
+    db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """读取沙箱工作区文件内容。"""
     try:
-        content = SandboxService.get_file_content(project_id, file_path)
+        project_dir = resolve_project_dir(project_id, db)
+        content = SandboxService.get_file_content(project_dir, file_path)
         return {"data": {"path": file_path, "content": content}, "error": None}
     except (FileNotFoundError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -50,6 +59,7 @@ def save_file(
     project_id: str,
     file_path: str,
     body: dict,
+    db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """保存文件到沙箱工作区。"""
@@ -57,7 +67,8 @@ def save_file(
     if content is None:
         raise HTTPException(status_code=400, detail="缺少 content 字段")
     try:
-        result = SandboxService.save_file(project_id, file_path, content)
+        project_dir = resolve_project_dir(project_id, db)
+        result = SandboxService.save_file(project_dir, file_path, content)
         return {"data": result, "error": None}
     except (FileNotFoundError, ValueError, OSError) as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -67,12 +78,14 @@ def save_file(
 def create_snapshot(
     project_id: str,
     body: dict = {},
+    db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """创建当前工作区的快照。"""
     description = body.get("description", "")
     try:
-        result = SandboxService.create_snapshot(project_id, description)
+        project_dir = resolve_project_dir(project_id, db)
+        result = SandboxService.create_snapshot(project_dir, description)
         return {"data": result, "error": None}
     except FileNotFoundError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -81,10 +94,12 @@ def create_snapshot(
 @sandbox_router.get("/snapshots")
 def get_snapshots(
     project_id: str,
+    db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """列出所有快照。"""
-    snapshots = SandboxService.get_snapshots(project_id)
+    project_dir = resolve_project_dir(project_id, db)
+    snapshots = SandboxService.get_snapshots(project_dir)
     return {"data": snapshots, "error": None}
 
 
@@ -92,11 +107,13 @@ def get_snapshots(
 def restore_snapshot(
     project_id: str,
     snapshot_id: str,
+    db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """从指定快照恢复工作区。"""
     try:
-        result = SandboxService.restore_from_snapshot(project_id, snapshot_id)
+        project_dir = resolve_project_dir(project_id, db)
+        result = SandboxService.restore_from_snapshot(project_dir, snapshot_id)
         return {"data": result, "error": None}
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -106,11 +123,13 @@ def restore_snapshot(
 def get_diff(
     project_id: str,
     file_path: str,
+    db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """计算文件的修改 diff（当前工作区 vs 原始 Artifact）。"""
     try:
-        result = SandboxService.get_diff(project_id, file_path)
+        project_dir = resolve_project_dir(project_id, db)
+        result = SandboxService.get_diff(project_dir, file_path)
         return {"data": result, "error": None}
     except (FileNotFoundError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -120,13 +139,15 @@ def get_diff(
 def restore_original(
     project_id: str,
     body: dict = {},
+    db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """从原始 Artifact 恢复文件。POST body 可选 {file_path: "src/main.py"} 恢复单个文件，
     不传 file_path 则恢复全部文件到沙箱。"""
     file_path = body.get("file_path")
     try:
-        result = SandboxService.restore_original(project_id, file_path)
+        project_dir = resolve_project_dir(project_id, db)
+        result = SandboxService.restore_original(project_dir, file_path)
         return {"data": result, "error": None}
     except (FileNotFoundError, ValueError) as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -136,6 +157,7 @@ def restore_original(
 def trigger_rebuild(
     project_id: str,
     body: dict = {},
+    db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """触发重建：自动快照 → 从沙箱构建 → 推送到 runtime。
@@ -144,7 +166,10 @@ def trigger_rebuild(
     description = body.get("description", "")
     async_build = body.get("async", False)
     try:
-        result = SandboxService.trigger_rebuild(project_id, description, async_build=async_build)
+        project_dir = resolve_project_dir(project_id, db)
+        result = SandboxService.trigger_rebuild(
+            project_id, project_dir, description, async_build=async_build,
+        )
         return {"data": result, "error": None}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
